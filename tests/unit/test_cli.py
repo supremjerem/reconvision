@@ -86,6 +86,7 @@ def test_check_accepts_a_configuration_with_no_cameras_yet(tmp_path: Path) -> No
     assert "Cameras enabled:  0 of 0" in result.stdout
 
 
+@pytest.mark.models
 def test_run_reports_throughput_for_a_recorded_clip(tmp_path: Path) -> None:
     from tests.fixtures.video import still_frame, walk_past, write_video
 
@@ -106,6 +107,7 @@ def test_run_rejects_a_malformed_source_without_a_stack_trace() -> None:
     assert "Traceback" not in result.output
 
 
+@pytest.mark.models
 def test_run_stops_at_the_requested_frame_count(tmp_path: Path) -> None:
     """Bounded runs are what make the pipeline testable against real footage."""
     from tests.fixtures.video import frame_with_subject, write_video
@@ -117,3 +119,20 @@ def test_run_stops_at_the_requested_frame_count(tmp_path: Path) -> None:
     )
 
     assert result.exit_code == 0
+
+
+def test_run_explains_how_to_get_the_models_when_they_are_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The first thing a new user hits. A traceback here would read as a broken
+    install rather than a missing one-off setup step."""
+    from tests.fixtures.video import still_frame, write_video
+
+    monkeypatch.setenv("RECONVISION_DATA_DIR", str(tmp_path / "empty"))
+    clip = write_video(tmp_path / "clip.mp4", [still_frame()] * 5)
+
+    result = runner.invoke(app, ["run", "--source", str(clip)])
+
+    assert result.exit_code == 1
+    assert "export-models" in result.output
+    assert "Traceback" not in result.output
