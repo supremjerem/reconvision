@@ -15,7 +15,15 @@ from pydantic_settings import SettingsConfigDict
 
 from reconvision.application.config import Settings
 from reconvision.domain.events import EventFeedback, RecognitionEvent
-from reconvision.domain.models import Detection, Frame, GalleryEntry, Identity
+from reconvision.domain.models import (
+    BoundingBox,
+    Detection,
+    Face,
+    Frame,
+    GalleryEntry,
+    Identity,
+    TrackedDetection,
+)
 
 
 class FakeClock:
@@ -152,3 +160,64 @@ class IsolatedSettings(Settings):
 def build_settings(**overrides: Any) -> Settings:
     """Settings isolated from the developer's environment."""
     return IsolatedSettings(**overrides)
+
+
+class ScriptedTracker:
+    """Assigns ids by position, so pipeline tests do not depend on ByteTrack.
+
+    Each detection keeps the id of the nearest detection from the previous frame,
+    which is enough to express "the same person across frames" and "two different
+    people" without importing a Kalman filter into a unit test.
+    """
+
+    def __init__(self, association_distance: float = 200.0) -> None:
+        self._association_distance = association_distance
+        self._previous: dict[int, tuple[float, float]] = {}
+        self._next_id = 0
+
+    def update(self, detections: Sequence[Detection]) -> Sequence[TrackedDetection]:
+        assigned: dict[int, tuple[float, float]] = {}
+        tracked: list[TrackedDetection] = []
+
+        for detection in detections:
+            centre = (
+                (detection.box.left + detection.box.right) / 2,
+                (detection.box.top + detection.box.bottom) / 2,
+            )
+            track_id = self._nearest(centre, exclude=set(assigned))
+            if track_id is None:
+                track_id = self._next_id
+                self._next_id += 1
+            assigned[track_id] = centre
+            tracked.append(TrackedDetection(track_id=track_id, detection=detection))
+
+        self._previous = assigned
+        return tracked
+
+    def _nearest(self, centre: tuple[float, float], exclude: set[int]) -> int | None:
+        candidates = {
+            track_id: (position[0] - centre[0]) ** 2 + (position[1] - centre[1]) ** 2
+            for track_id, position in self._previous.items()
+            if track_id not in exclude
+        }
+        if not candidates:
+            return None
+        best = min(candidates, key=lambda track_id: candidates[track_id])
+        return best if candidates[best] <= self._association_distance**2 else None
+
+
+class ScriptedFaceAnalyzer:
+    """Returns a fixed face for any region, or none at all.
+
+    Lets a pipeline test state "this person's face is recognisable" or "this
+    person is filmed from behind" directly, instead of arranging pixels that
+    happen to make a real model say so.
+    """
+
+    def __init__(self, faces: Sequence[Face] = ()) -> None:
+        self._faces = list(faces)
+        self.calls = 0
+
+    def analyse(self, frame: Frame, region: BoundingBox | None = None) -> Sequence[Face]:
+        self.calls += 1
+        return list(self._faces)

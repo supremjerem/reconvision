@@ -12,6 +12,9 @@ your phone.
   from scratch. Enrolling a person takes a handful of photos and about thirty seconds.
 - **Filters out animals early.** A cat crossing the room is classified by the object
   detector and never reaches the face model, which is where the CPU budget goes.
+- **Declines to guess.** A face too small, blurry or side-on to identify is reported as
+  "someone was here" rather than matched against the gallery, because a degraded
+  embedding lands near everybody and produces confident wrong answers.
 - **Emits one event per passage, not one per frame.** Identity is decided by a
   quality-weighted vote across a tracked path, so a person walking through a room
   produces a single stable event instead of two hundred flickering ones.
@@ -107,7 +110,7 @@ unacceptable for anything that unlocks a door.
       so every later stage is instrumented as it is written
 - [x] **4. Video ingestion** — file, webcam, RTSP and go2rtc sources, reconnection,
       frame dropping under load, motion gating
-- [ ] **5. Detection and recognition** — YOLO11 ONNX export, person/animal detection,
+- [x] **5. Detection and recognition** — YOLO11 ONNX export, person/animal detection,
       InsightFace embeddings, ByteTrack, full pipeline
 - [ ] **6. Enrollment and calibration** — `enroll` and `eval` with ROC and TAR@FAR=1e-3
 - [ ] **7. Persistence and alerts** — SQLite WAL, migrations, snapshot retention,

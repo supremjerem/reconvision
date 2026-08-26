@@ -20,6 +20,7 @@ from reconvision.domain.models import (
     Frame,
     GalleryEntry,
     Identity,
+    TrackedDetection,
 )
 
 
@@ -64,24 +65,16 @@ class FaceAnalyzer(Protocol):
 
 
 @runtime_checkable
-class TrackedDetection(Protocol):
-    """A detection with a stable identifier across frames."""
-
-    @property
-    def track_id(self) -> int: ...
-
-    @property
-    def detection(self) -> Detection: ...
-
-
-@runtime_checkable
 class Tracker(Protocol):
-    """Associates detections across frames so identity is decided per path."""
+    """Associates detections across frames so identity is decided per path.
+
+    Track expiry is deliberately not part of this contract. Trackers reclaim
+    their own state, and the pipeline decides when a track has *ended* by
+    watching for its id to stop appearing - which is a policy question about how
+    long someone may be occluded, not something a tracker should answer.
+    """
 
     def update(self, detections: Sequence[Detection]) -> Sequence[TrackedDetection]: ...
-
-    def forget(self, track_id: int) -> None:
-        """Drop a finished track's state."""
 
 
 @runtime_checkable

@@ -25,6 +25,8 @@ runtime = [
     "insightface>=1.0.1",
     "opencv-python-headless>=4.10",
     "supervision>=0.30",
+    # ByteTrack moved out of supervision in 0.28 and is removed in 0.31.
+    "trackers>=2.6",
     "av>=14.2",
 ]
 api = [
@@ -46,6 +48,7 @@ telemetry = [
 # Model export only. Pulls PyTorch, never installed in the runtime image.
 export = [
     "ultralytics>=8.4",
+    "onnxslim>=0.1.82",
 ]
 dev = [
     "pytest>=8.3",
@@ -122,8 +125,14 @@ files = ["src", "tests"]
 
 # Third-party packages that ship no type information.
 [[tool.mypy.overrides]]
-module = ["insightface.*", "cv2.*", "supervision.*", "onnxruntime.*", "paho.*"]
+module = ["insightface.*", "cv2.*", "supervision.*", "onnxruntime.*", "paho.*", "trackers.*"]
 ignore_missing_imports = true
+
+# Ultralytics ships type information but does not re-export YOLO in __all__,
+# even though `from ultralytics import YOLO` is its documented entry point.
+[[tool.mypy.overrides]]
+module = ["ultralytics.*"]
+implicit_reexport = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

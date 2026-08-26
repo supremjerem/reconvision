@@ -113,6 +113,18 @@ class Detection:
 
 
 @dataclass(frozen=True, slots=True)
+class TrackedDetection:
+    """A detection carrying an identifier stable across frames.
+
+    The track id is what lets recognition be decided once per passage instead of
+    once per frame, which is both cheaper and more accurate.
+    """
+
+    track_id: int
+    detection: Detection
+
+
+@dataclass(frozen=True, slots=True)
 class FaceQuality:
     """How usable a detected face is for recognition.
 

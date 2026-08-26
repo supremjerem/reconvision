@@ -952,6 +952,22 @@ wheels = [
 ]
 
 [[package]]
+name = "onnxslim"
+version = "0.1.96"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama" },
+    { name = "ml-dtypes" },
+    { name = "onnx" },
+    { name = "packaging" },
+    { name = "sympy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/92/ac/b2230e9a0654a64d929398d703816b34655119998a9e136301c8f66585a3/onnxslim-0.1.96.tar.gz", hash = "sha256:386a1c64e61a66fb79cdd62de996323b9fb950d22de9b117cd31f211cac96048", size = 598898, upload-time = "2026-08-16T03:15:59.536Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dc/c0/7a491ab9ebc7fc7dfccb7ca36251d9d54ee35b9c88427733f05b09fc40e9/onnxslim-0.1.96-py3-none-any.whl", hash = "sha256:a43f800d39434e6b4d542abe17c25afb7fcc33aabf53d20464cb0dae0f66cbb6", size = 239022, upload-time = "2026-08-16T03:15:58.121Z" },
+]
+
+[[package]]
 name = "opencv-python"
 version = "5.0.0.93"
 source = { registry = "https://pypi.org/simple" }
@@ -1480,6 +1496,7 @@ dev = [
     { name = "types-pyyaml" },
 ]
 export = [
+    { name = "onnxslim" },
     { name = "ultralytics" },
 ]
 notify = [
@@ -1492,6 +1509,7 @@ runtime = [
     { name = "onnxruntime" },
     { name = "opencv-python-headless" },
     { name = "supervision" },
+    { name = "trackers" },
 ]
 telemetry = [
     { name = "opentelemetry-exporter-otlp-proto-http" },
@@ -1511,6 +1529,7 @@ requires-dist = [
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.14" },
     { name = "numpy", specifier = ">=2.1" },
     { name = "onnxruntime", marker = "extra == 'runtime'", specifier = ">=1.29" },
+    { name = "onnxslim", marker = "extra == 'export'", specifier = ">=0.1.82" },
     { name = "opencv-python-headless", marker = "extra == 'runtime'", specifier = ">=4.10" },
     { name = "opentelemetry-exporter-otlp-proto-http", marker = "extra == 'telemetry'", specifier = ">=1.30" },
     { name = "opentelemetry-instrumentation-fastapi", marker = "extra == 'telemetry'", specifier = ">=0.51b0" },
@@ -1528,6 +1547,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.9" },
     { name = "structlog", specifier = ">=26.1" },
     { name = "supervision", marker = "extra == 'runtime'", specifier = ">=0.30" },
+    { name = "trackers", marker = "extra == 'runtime'", specifier = ">=2.6" },
     { name = "typer", specifier = ">=0.15" },
     { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0" },
     { name = "ultralytics", marker = "extra == 'export'", specifier = ">=8.4" },
@@ -1781,6 +1801,24 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/21/3b/6c24bec5be5e743ffd99576daa5cc077722fc7d5bbc00bd133fa0c698dc6/tqdm-4.70.0.tar.gz", hash = "sha256:55b0b0dbd97462d06ebee91e4dac24ed4d4702be82b24f07e6c1d27e08cea220", size = 795438, upload-time = "2026-07-27T11:33:15.271Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f9/1c/01bfd571a64e7f270e6bab5e33777debe0edc56759233ce84f27dec92d14/tqdm-4.70.0-py3-none-any.whl", hash = "sha256:7f585706bfddbdebf89daac705b2dfcc16890130727d3197ca62c732b4310953", size = 80184, upload-time = "2026-07-27T11:33:13.167Z" },
+]
+
+[[package]]
+name = "trackers"
+version = "2.6.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "opencv-python", marker = "sys_platform == 'unreachable'" },
+    { name = "pydeprecate" },
+    { name = "requests" },
+    { name = "rich" },
+    { name = "scipy" },
+    { name = "supervision" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/33/68/18336fa578845de98d3bb20b08e007b066c33fcbb08ece3398ec8b438b1c/trackers-2.6.0.tar.gz", hash = "sha256:1d33d3ce0b684478e4adb3f32f138a5d15a71694202ee484a98a90a75c4afaa0", size = 185208, upload-time = "2026-08-06T17:39:18.08Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ce/11/f53ad8cea391fed47e367ed94dca375608daa83afc196c1ddb2b3faa9f24/trackers-2.6.0-py3-none-any.whl", hash = "sha256:4d5dfec12ba146c8df6b82d699ecb44a56fe50fed375ba42c635a95b81987277", size = 220772, upload-time = "2026-08-06T17:39:16.332Z" },
 ]
 
 [[package]]

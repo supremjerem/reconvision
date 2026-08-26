@@ -31,6 +31,8 @@ class IngestStats:
     decoded: int = 0
     sampled: int = 0
     analysed: int = 0
+    #: Frames analysed despite no motion, to catch a subject standing still.
+    heartbeats: int = 0
     started_at: float = field(default_factory=perf_counter)
 
     @property
@@ -62,15 +64,21 @@ class FrameIngestor:
         telemetry: Telemetry,
         sample_every_n_frames: int = 3,
         motion_gate: MotionGate | None = None,
+        heartbeat_every_n_samples: int = 12,
     ) -> None:
         if sample_every_n_frames < 1:
             message = f"Sampling must keep at least every frame, got {sample_every_n_frames}"
+            raise ValueError(message)
+        if heartbeat_every_n_samples < 1:
+            message = f"Heartbeat must be at least one sample, got {heartbeat_every_n_samples}"
             raise ValueError(message)
 
         self._source = source
         self._telemetry = telemetry
         self._sample_every = sample_every_n_frames
         self._motion = motion_gate if motion_gate is not None else MotionGate()
+        self._heartbeat_every = heartbeat_every_n_samples
+        self._samples_since_analysis = 0
         self.stats = IngestStats(camera_name=source.name)
 
     def analysable_frames(self) -> Iterator[Frame]:
@@ -85,16 +93,34 @@ class FrameIngestor:
             if index % self._sample_every != 0:
                 continue
             self.stats.sampled += 1
+            self._samples_since_analysis += 1
 
             with self._telemetry.stage(MOTION_GATE, **camera):
                 moved = self._motion.has_motion(frame)
 
-            if not moved:
+            # Frame differencing reports change, not presence. Someone walking
+            # straight at the camera barely shifts any pixels, and someone who
+            # stops moving disappears from it entirely - so the gate alone would
+            # let a person stand in the room unseen. The heartbeat bounds how long
+            # that can last, at a cost of a few detections a minute on a still scene.
+            if not moved and self._samples_since_analysis < self._heartbeat_every:
                 continue
 
+            if not moved:
+                self.stats.heartbeats += 1
+
+            self._samples_since_analysis = 0
             self.stats.analysed += 1
             metrics.frames_analysed.add(1, camera)
             yield frame
+
+    def close(self) -> None:
+        """Release the underlying video source.
+
+        Safe to call from a signal handler and safe to call twice, which is what
+        a Ctrl-C during shutdown actually does.
+        """
+        self._source.close()
 
     def log_throughput(self) -> None:
         """Report what the camera cost, which is what `run` prints on exit."""
@@ -103,6 +129,7 @@ class FrameIngestor:
             camera=self.stats.camera_name,
             decoded=self.stats.decoded,
             analysed=self.stats.analysed,
+            heartbeats=self.stats.heartbeats,
             decoded_fps=round(self.stats.decoded_fps, 1),
             analysed_fps=round(self.stats.analysed_fps, 1),
             skipped_ratio=round(self.stats.skipped_ratio, 3),

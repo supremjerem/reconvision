@@ -31,16 +31,51 @@ class AlwaysMoving(MotionGate):
         return True
 
 
-def test_an_empty_room_reaches_the_detector_once_and_never_again(
+def test_an_empty_room_is_almost_entirely_skipped(telemetry: Telemetry) -> None:
+    """The saving the whole design rests on: 30 frames of nothing cost 3 detections."""
+    source = ScriptedFrameSource("hall", [still_frame()] * 30)
+    ingestor = FrameIngestor(
+        source, telemetry, sample_every_n_frames=1, heartbeat_every_n_samples=12
+    )
+
+    analysed = list(ingestor.analysable_frames())
+
+    assert ingestor.stats.decoded == 30
+    assert len(analysed) <= 3
+
+
+def test_a_still_scene_is_rechecked_on_a_heartbeat(telemetry: Telemetry) -> None:
+    """Frame differencing reports change, not presence. Someone who walks in and
+    then stands still vanishes from the gate, so without a heartbeat they could
+    stand in the room indefinitely without the detector ever looking again."""
+    source = ScriptedFrameSource("hall", [still_frame()] * 30)
+    ingestor = FrameIngestor(
+        source, telemetry, sample_every_n_frames=1, heartbeat_every_n_samples=10
+    )
+
+    list(ingestor.analysable_frames())
+
+    assert ingestor.stats.heartbeats >= 2
+
+
+def test_the_heartbeat_interval_controls_how_often_a_still_scene_is_rechecked(
     telemetry: Telemetry,
 ) -> None:
-    """The saving the whole design rests on. Only the first frame gets through,
-    because there is nothing to compare it against yet."""
-    source = ScriptedFrameSource("hall", [still_frame()] * 30)
-    ingestor = FrameIngestor(source, telemetry, sample_every_n_frames=1)
+    def analysed_with(heartbeat: int) -> int:
+        ingestor = FrameIngestor(
+            ScriptedFrameSource("hall", [still_frame()] * 60),
+            telemetry,
+            sample_every_n_frames=1,
+            heartbeat_every_n_samples=heartbeat,
+        )
+        return len(list(ingestor.analysable_frames()))
 
-    assert len(list(ingestor.analysable_frames())) == 1
-    assert ingestor.stats.decoded == 30
+    assert analysed_with(5) > analysed_with(30)
+
+
+def test_an_impossible_heartbeat_is_refused(telemetry: Telemetry) -> None:
+    with pytest.raises(ValueError, match="at least one sample"):
+        FrameIngestor(ScriptedFrameSource("hall", []), telemetry, heartbeat_every_n_samples=0)
 
 
 def test_someone_walking_through_reaches_the_detector(telemetry: Telemetry) -> None:
