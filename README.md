@@ -100,9 +100,9 @@ unacceptable for anything that unlocks a door.
 
 ## Roadmap
 
-- [ ] **1. Scaffolding** — uv + Python 3.12, ruff, mypy strict, pytest, hardened
+- [x] **1. Scaffolding** — uv + Python 3.12, ruff, mypy strict, pytest, hardened
       `.gitignore`, leak-blocking pre-commit hook, GitHub repository, green CI
-- [ ] **2. Domain layer** — matching, quality filters, temporal voting, ports, unit tests
+- [x] **2. Domain layer** — matching, quality filters, temporal voting, ports, unit tests
 - [ ] **3. Observability** — OpenTelemetry traces/metrics/logs and structlog, wired early
       so every later stage is instrumented as it is written
 - [ ] **4. Video ingestion** — file, webcam, RTSP and go2rtc sources, reconnection,
