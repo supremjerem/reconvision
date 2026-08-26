@@ -1,0 +1,65 @@
+# ---------------------------------------------------------------------------
+# Privacy first: this is a public repository handling biometric data.
+# Nothing derived from a camera, a face, or a credential may ever be committed.
+# ---------------------------------------------------------------------------
+data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Images and video, wherever they land. Documentation assets are re-allowed
+# explicitly below so the README screenshot and diagrams still work.
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.webp
+*.tiff
+*.mp4
+*.mkv
+*.avi
+*.mov
+*.ts
+!docs/**/*.png
+!docs/**/*.gif
+!docs/**/*.svg
+!.github/assets/**
+
+# Face embeddings and model weights
+*.npy
+*.npz
+*.onnx
+*.pt
+*.pth
+models/
+
+# Secrets and camera credentials
+.env
+.env.*
+!.env.example
+cameras.yaml
+!cameras.example.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp

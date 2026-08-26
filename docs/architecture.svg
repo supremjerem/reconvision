@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 690" width="900" height="690" role="img" aria-label="ReconVision pipeline: cameras are normalised by go2rtc, then pass through motion gating, object detection, face detection, embedding, gallery matching and track voting before producing a single event.">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#b45309"/>
+    </marker>
+    <marker id="arrow-pink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#be185d"/>
+    </marker>
+    <style>
+      .box   { rx: 8; stroke-width: 1.5; }
+      .stage { fill: #e8eaff; stroke: #6366f1; }
+      .src   { fill: #e2e8f0; stroke: #64748b; }
+      .exit  { fill: #fef3c7; stroke: #b45309; }
+      .out   { fill: #dcfce7; stroke: #16a34a; }
+      .fb    { fill: #fce7f3; stroke: #be185d; }
+      .t     { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; fill: #0f172a; }
+      .lbl   { font-size: 14px; font-weight: 600; }
+      .sub   { font-size: 11.5px; fill: #475569; font-weight: 400; }
+      .note  { font-size: 11.5px; fill: #64748b; font-style: italic; }
+      .amber { font-size: 11.5px; fill: #b45309; font-weight: 600; }
+      .pink  { font-size: 11.5px; fill: #be185d; font-weight: 600; }
+      .title { font-size: 17px; font-weight: 700; }
+      .cap   { font-size: 12px; fill: #475569; }
+      .num   { font-size: 11px; font-weight: 700; fill: #6366f1; }
+    </style>
+  </defs>
+
+  <rect width="900" height="690" fill="#f8fafc"/>
+  <text class="t title" x="34" y="40">ReconVision — staged recognition pipeline</text>
+  <text class="t cap" x="34" y="60">Each stage runs only if the previous one found something. That gating is what keeps several streams affordable.</text>
+
+  <!-- source -->
+  <rect class="box src" x="300" y="88" width="300" height="46"/>
+  <text class="t lbl" x="450" y="107" text-anchor="middle">go2rtc</text>
+  <text class="t sub" x="450" y="123" text-anchor="middle">normalises RTSP / ONVIF / cloud cameras into one stream</text>
+  <path d="M450 134 L450 160" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- 1 motion -->
+  <rect class="box stage" x="300" y="160" width="300" height="46"/>
+  <text class="num" x="314" y="179">1</text>
+  <text class="t lbl" x="450" y="179" text-anchor="middle">Motion gate</text>
+  <text class="t sub" x="450" y="195" text-anchor="middle">frame differencing — near-zero cost</text>
+  <text class="t note" x="288" y="187" text-anchor="end">still scene → stop</text>
+  <path d="M450 206 L450 232" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- 2 objects -->
+  <rect class="box stage" x="300" y="232" width="300" height="46"/>
+  <text class="num" x="314" y="251">2</text>
+  <text class="t lbl" x="450" y="251" text-anchor="middle">Object detection · YOLO11 ONNX</text>
+  <text class="t sub" x="450" y="267" text-anchor="middle">person / cat / dog / bird</text>
+
+  <!-- animal exit -->
+  <path d="M600 255 L688 255" stroke="#b45309" stroke-width="1.5" marker-end="url(#arrow-amber)"/>
+  <rect class="box exit" x="690" y="232" width="176" height="46"/>
+  <text class="t lbl" x="778" y="251" text-anchor="middle">Animal event</text>
+  <text class="t sub" x="778" y="267" text-anchor="middle">face model never runs</text>
+  <text class="amber" x="644" y="248" text-anchor="middle">animal</text>
+
+  <path d="M450 278 L450 304" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text class="t note" x="288" y="295" text-anchor="end">no person → stop</text>
+
+  <!-- 3 face -->
+  <rect class="box stage" x="300" y="304" width="300" height="46"/>
+  <text class="num" x="314" y="323">3</text>
+  <text class="t lbl" x="450" y="323" text-anchor="middle">Face detection · SCRFD</text>
+  <text class="t sub" x="450" y="339" text-anchor="middle">landmarks → alignment → quality filter</text>
+  <text class="t note" x="288" y="331" text-anchor="end">too small / blurry / side-on → stop</text>
+  <path d="M450 350 L450 376" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- 4 embedding -->
+  <rect class="box stage" x="300" y="376" width="300" height="46"/>
+  <text class="num" x="314" y="395">4</text>
+  <text class="t lbl" x="450" y="395" text-anchor="middle">Embedding · ArcFace</text>
+  <text class="t sub" x="450" y="411" text-anchor="middle">512-dimensional normalised vector</text>
+  <path d="M450 422 L450 448" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- 5 matching -->
+  <rect class="box stage" x="300" y="448" width="300" height="46"/>
+  <text class="num" x="314" y="467">5</text>
+  <text class="t lbl" x="450" y="467" text-anchor="middle">Gallery match</text>
+  <text class="t sub" x="450" y="483" text-anchor="middle">cosine similarity vs calibrated threshold</text>
+  <path d="M450 494 L450 520" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- 6 vote -->
+  <rect class="box stage" x="300" y="520" width="300" height="46"/>
+  <text class="num" x="314" y="539">6</text>
+  <text class="t lbl" x="450" y="539" text-anchor="middle">Track vote · ByteTrack</text>
+  <text class="t sub" x="450" y="555" text-anchor="middle">one identity per path, not per frame</text>
+  <path d="M450 566 L450 592" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- outputs -->
+  <rect class="box out" x="150" y="592" width="180" height="46"/>
+  <text class="t lbl" x="240" y="611" text-anchor="middle">SQLite + snapshot</text>
+  <text class="t sub" x="240" y="627" text-anchor="middle">retention-purged</text>
+
+  <rect class="box out" x="356" y="592" width="188" height="46"/>
+  <text class="t lbl" x="450" y="611" text-anchor="middle">Push alert</text>
+  <text class="t sub" x="450" y="627" text-anchor="middle">ntfy · MQTT · webhook</text>
+
+  <rect class="box fb" x="570" y="592" width="180" height="46"/>
+  <text class="t lbl" x="660" y="611" text-anchor="middle">Correction screen</text>
+  <text class="t sub" x="660" y="627" text-anchor="middle">“that was me”</text>
+
+  <path d="M450 592 L240 592" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M450 592 L660 592" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- feedback loop -->
+  <path d="M750 615 C 838 615, 838 471, 604 471" fill="none" stroke="#be185d" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow-pink)"/>
+  <text class="pink" x="866" y="545" text-anchor="end">enriches the gallery</text>
+  <text class="pink" x="866" y="561" text-anchor="end">and the eval set</text>
+</svg>

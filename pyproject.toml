@@ -1,0 +1,138 @@
+[project]
+name = "reconvision"
+version = "0.1.0"
+description = "Face recognition on home video streams: tells you whether it is you, a stranger, or an animal."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "MIT" }
+authors = [{ name = "supremjerem" }]
+keywords = ["face-recognition", "video-surveillance", "onnx", "arcface", "home-automation"]
+
+dependencies = [
+    "numpy>=2.1",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.15",
+    "typer>=0.15",
+    "pyyaml>=6.0",
+    "structlog>=26.1",
+]
+
+[project.optional-dependencies]
+# Inference runtime: everything needed to actually process a stream.
+# Deliberately excludes torch, which is only required to export models.
+runtime = [
+    "onnxruntime>=1.29",
+    "insightface>=1.0.1",
+    "opencv-python-headless>=4.10",
+    "supervision>=0.30",
+    "av>=14.2",
+]
+api = [
+    "fastapi>=0.118",
+    "granian>=2.8",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.20",
+]
+notify = [
+    "httpx>=0.28",
+    "paho-mqtt>=2.1",
+]
+telemetry = [
+    "opentelemetry-sdk>=1.30",
+    "opentelemetry-exporter-otlp-proto-http>=1.30",
+    "opentelemetry-instrumentation-fastapi>=0.51b0",
+    "prometheus-client>=0.21",
+]
+# Model export only. Pulls PyTorch, never installed in the runtime image.
+export = [
+    "ultralytics>=8.4",
+]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "pytest-mock>=3.14",
+    "ruff>=0.9",
+    "mypy>=1.14",
+    "types-pyyaml>=6.0",
+]
+
+[project.scripts]
+reconvision = "reconvision.cli:app"
+
+[project.urls]
+Repository = "https://github.com/supremjerem/reconvision"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/reconvision"]
+
+[tool.uv]
+# insightface declares opencv-python, the GUI build. Both builds install the same
+# `cv2` module, so having both is a coin flip over which one wins. Neutralising the
+# requirement with an unsatisfiable marker leaves opencv-python-headless, declared
+# in the runtime extra, as the only provider - and keeps X11 out of the image.
+override-dependencies = ["opencv-python; sys_platform == 'unreachable'"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes
+    "I",         # isort
+    "N",         # pep8-naming
+    "UP",        # pyupgrade
+    "B",         # flake8-bugbear
+    "A",         # flake8-builtins
+    "C4",        # flake8-comprehensions
+    "SIM",       # flake8-simplify
+    "PTH",       # flake8-use-pathlib
+    "RUF",       # ruff-specific
+    "ANN",       # flake8-annotations
+    "S",         # flake8-bandit
+    "T20",       # flake8-print
+]
+ignore = [
+    "ANN401",    # allow typing.Any where it is genuinely needed
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]                        # asserts are the point of a test
+"src/reconvision/cli.py" = ["T20"]           # the CLI is allowed to print
+"src/reconvision/tooling/*" = ["T20"]        # so is the pre-commit guard
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+disallow_any_generics = true
+files = ["src", "tests"]
+
+# Third-party packages that ship no type information.
+[[tool.mypy.overrides]]
+module = ["insightface.*", "cv2.*", "supervision.*", "onnxruntime.*", "paho.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+    "integration: exercises several components together, may read fixture media",
+    "models: requires downloaded model weights, skipped in CI by default",
+]
+
+[tool.coverage.run]
+source = ["src/reconvision"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedError"]

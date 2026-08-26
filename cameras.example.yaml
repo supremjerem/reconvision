@@ -1,0 +1,14 @@
+# Copy to cameras.yaml. Credentials live in .env and are interpolated here,
+# so this file stays safe to read even when the real one is not committed.
+cameras:
+  - name: living_room
+    source: ${LIVING_ROOM_STREAM_URL}
+    # Only analyse every Nth frame. Motion gating already skips still scenes;
+    # this caps the cost when something is genuinely moving.
+    sample_every_n_frames: 3
+    enabled: true
+
+  - name: webcam
+    source: "webcam:0"
+    sample_every_n_frames: 2
+    enabled: false
