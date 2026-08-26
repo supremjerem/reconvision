@@ -58,12 +58,43 @@ cp cameras.example.yaml cameras.yaml      # then edit it
 ## Usage
 
 ```bash
-uv run reconvision export-models                    # fetch and convert model weights
+# Once, after installing: download and convert the weights (~360 MB, into data/).
+uv run reconvision export-models
+
+# Check the configuration without opening a camera.
+uv run reconvision check
+
+# Teach the system a person. Every photo is reported individually; a photo with
+# more than one face is skipped rather than guessed at.
 uv run reconvision enroll --identity you --photos ./data/gallery/you
-uv run reconvision eval --identity you              # ROC curve + recommended threshold
-uv run reconvision run --source webcam --show       # walk in front of the camera
-uv run reconvision serve                            # http://localhost:8000
+
+# Measure accuracy and get a threshold to put in .env. Do not guess this value.
+uv run reconvision eval
+
+# Watch a source. Animals are classified without any enrolment.
+uv run reconvision run --source webcam:0 --name office
+uv run reconvision run --source ./clip.mp4
 ```
+
+### Choosing the threshold
+
+`eval` compares many photographs of the same person against many photographs of
+different people, and reports the threshold that holds wrong identifications to a
+chosen rate. It measures against [LFW](http://vis-www.cs.umass.edu/lfw/) because a
+false-accept rate of one in a thousand cannot be observed with the two or three people
+in a household. The dataset is downloaded on demand into `data/` and never committed.
+
+The output names the trade-off directly:
+
+```
+FAR    1.0%  ->  threshold 0.31  recognises 99% of genuine faces
+FAR    0.1%  ->  threshold 0.42  recognises 96% of genuine faces
+FAR   0.01%  ->  threshold 0.51  recognises 89% of genuine faces
+```
+
+Fix the false-accept rate first: it is how often a stranger is greeted by your name,
+which in a house is the error that matters. How often the system recognises you follows
+from that choice.
 
 ## Architecture
 
@@ -112,7 +143,7 @@ unacceptable for anything that unlocks a door.
       frame dropping under load, motion gating
 - [x] **5. Detection and recognition** — YOLO11 ONNX export, person/animal detection,
       InsightFace embeddings, ByteTrack, full pipeline
-- [ ] **6. Enrollment and calibration** — `enroll` and `eval` with ROC and TAR@FAR=1e-3
+- [x] **6. Enrollment and calibration** — `enroll` and `eval` with ROC and TAR@FAR=1e-3
 - [ ] **7. Persistence and alerts** — SQLite WAL, migrations, snapshot retention,
       ntfy / MQTT / webhook fan-out
 - [ ] **8. Web screens** — enrollment review and event correction, feeding the gallery

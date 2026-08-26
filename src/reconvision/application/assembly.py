@@ -11,9 +11,11 @@ from datetime import UTC, datetime
 
 from reconvision.adapters.detection.onnx_yolo import DetectorPolicy, OnnxYoloDetector
 from reconvision.adapters.faces.insightface_analyzer import InsightFaceAnalyzer
+from reconvision.adapters.storage.sqlite_gallery import SqliteGallery, connect
 from reconvision.adapters.tracking.bytetrack import ByteTrackAdapter, TrackingPolicy
 from reconvision.adapters.video.sources import create_frame_source
 from reconvision.application.config import CameraConfig, Settings
+from reconvision.application.enrollment import EnrollmentService
 from reconvision.application.ingest import FrameIngestor
 from reconvision.application.pipeline import RecognitionPipeline
 from reconvision.application.telemetry import Telemetry
@@ -79,4 +81,23 @@ def build_pipeline(
         clock=SystemClock(),
         telemetry=telemetry,
         quality_policy=QualityPolicy(min_pixel_height=settings.min_face_pixels),
+    )
+
+
+def open_gallery(settings: Settings) -> SqliteGallery:
+    """Open the durable gallery, creating and migrating the database if needed."""
+    return SqliteGallery(connect(settings.database_path))
+
+
+def build_enrollment_service(
+    settings: Settings,
+    gallery: GalleryRepository | None = None,
+    analyzer: InsightFaceAnalyzer | None = None,
+) -> EnrollmentService:
+    """Assemble enrolment. Needs the face models but not the detector."""
+    return EnrollmentService(
+        analyzer=analyzer or InsightFaceAnalyzer(settings.models_dir, settings.face_model_pack),
+        gallery=gallery if gallery is not None else open_gallery(settings),
+        clock=SystemClock(),
+        quality=QualityPolicy(min_pixel_height=settings.min_face_pixels),
     )
