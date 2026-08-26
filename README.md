@@ -105,7 +105,7 @@ unacceptable for anything that unlocks a door.
 - [x] **2. Domain layer** — matching, quality filters, temporal voting, ports, unit tests
 - [x] **3. Observability** — OpenTelemetry traces/metrics/logs and structlog, wired early
       so every later stage is instrumented as it is written
-- [ ] **4. Video ingestion** — file, webcam, RTSP and go2rtc sources, reconnection,
+- [x] **4. Video ingestion** — file, webcam, RTSP and go2rtc sources, reconnection,
       frame dropping under load, motion gating
 - [ ] **5. Detection and recognition** — YOLO11 ONNX export, person/animal detection,
       InsightFace embeddings, ByteTrack, full pipeline
