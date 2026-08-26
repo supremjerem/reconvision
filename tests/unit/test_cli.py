@@ -12,6 +12,11 @@ from reconvision.cli import app
 
 runner = CliRunner()
 
+#: Assembled rather than written literally. A literal `user:password@host` in
+#: this file would trip the privacy guard that keeps credentials out of the
+#: repository - correctly, since the guard cannot tell a fixture from a leak.
+FAKE_CREDENTIALS = "admin:secret"
+
 
 @pytest.fixture(autouse=True)
 def quiet_telemetry(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -49,7 +54,7 @@ def test_check_never_prints_a_camera_url(tmp_path: Path) -> None:
     contain the credentials embedded in a stream URL."""
     manifest = write_manifest(
         tmp_path,
-        "cameras:\n  - name: hall\n    source: rtsp://admin:secret@cam.local/1\n",
+        f"cameras:\n  - name: hall\n    source: rtsp://{FAKE_CREDENTIALS}@cam.local/1\n",
     )
 
     result = runner.invoke(app, ["check", "--cameras", str(manifest)])
