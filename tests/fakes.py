@@ -9,7 +9,11 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
+from pydantic_settings import SettingsConfigDict
+
+from reconvision.application.config import Settings
 from reconvision.domain.events import EventFeedback, RecognitionEvent
 from reconvision.domain.models import Detection, Frame, GalleryEntry, Identity
 
@@ -131,3 +135,20 @@ class ScriptedDetector:
         index = min(self._calls, len(self._per_frame) - 1)
         self._calls += 1
         return self._per_frame[index] if self._per_frame else []
+
+
+class IsolatedSettings(Settings):
+    """Settings that ignore any .env file present on the machine.
+
+    Without this, a test asserting on a default would pass or fail depending on
+    what the developer happens to have configured locally. Expressed as a config
+    override rather than the `_env_file=None` constructor kwarg, which is a
+    runtime-only argument that type checking cannot see.
+    """
+
+    model_config = SettingsConfigDict(env_prefix="RECONVISION_", env_file=None, extra="ignore")
+
+
+def build_settings(**overrides: Any) -> Settings:
+    """Settings isolated from the developer's environment."""
+    return IsolatedSettings(**overrides)

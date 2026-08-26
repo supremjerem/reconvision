@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 
@@ -17,8 +18,8 @@ from reconvision.domain.models import SubjectKind
 START = datetime(2026, 8, 26, 3, 12, tzinfo=UTC)
 
 
-def event(**overrides: object) -> RecognitionEvent:
-    defaults: dict[str, object] = {
+def event(**overrides: Any) -> RecognitionEvent:
+    defaults: dict[str, Any] = {
         "camera_name": "living_room",
         "verdict": EventVerdict.UNKNOWN_PERSON,
         "started_at": START,
@@ -26,7 +27,7 @@ def event(**overrides: object) -> RecognitionEvent:
         "subject_kind": SubjectKind.PERSON,
     }
     defaults.update(overrides)
-    return RecognitionEvent(**defaults)  # type: ignore[arg-type]
+    return RecognitionEvent(**defaults)
 
 
 def test_an_event_reports_how_long_the_subject_was_present() -> None:

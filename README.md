@@ -103,7 +103,7 @@ unacceptable for anything that unlocks a door.
 - [x] **1. Scaffolding** — uv + Python 3.12, ruff, mypy strict, pytest, hardened
       `.gitignore`, leak-blocking pre-commit hook, GitHub repository, green CI
 - [x] **2. Domain layer** — matching, quality filters, temporal voting, ports, unit tests
-- [ ] **3. Observability** — OpenTelemetry traces/metrics/logs and structlog, wired early
+- [x] **3. Observability** — OpenTelemetry traces/metrics/logs and structlog, wired early
       so every later stage is instrumented as it is written
 - [ ] **4. Video ingestion** — file, webcam, RTSP and go2rtc sources, reconnection,
       frame dropping under load, motion gating
@@ -124,6 +124,14 @@ uv run pytest                       # domain suite: fast, no models, no network
 uv run pytest -m integration        # pipeline against synthetic video and fakes
 uv run ruff check . && uv run mypy src
 uv run pre-commit install           # enable the privacy guard locally
+```
+
+To view traces and metrics locally, start the bundled stack and point the exporter at
+it — Grafana is then on <http://localhost:3000>:
+
+```bash
+docker compose -f docker/compose.observability.yml up -d
+RECONVISION_TELEMETRY_EXPORTER=otlp uv run reconvision run --source webcam
 ```
 
 Day-to-day work happens on `develop`; `main` is protected and only advances through
