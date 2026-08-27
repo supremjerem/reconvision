@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}People — ReconVision{% endblock %}
+
+{% block content %}
+<p class="intro">
+    Everyone the system has been taught to recognise, and how many face captures
+    back each one. Ten or more, across different light and angles, is where
+    recognition gets reliable.
+</p>
+
+{% if not people %}
+<p class="empty-state">Nobody enrolled yet. Add someone below.</p>
+{% endif %}
+
+{% for person in people %}
+<div class="person" id="person-{{ person.identity.identity_id }}">
+    <div>
+        <strong>{{ person.identity.display_name }}</strong>
+        <span class="count {{ 'count--thin' if person.entries < 10 }}">{{ person.entries }} capture(s)</span>
+    </div>
+    <form hx-post="/people/{{ person.identity.identity_id }}/forget"
+          hx-target="#person-{{ person.identity.identity_id }}" hx-swap="outerHTML"
+          hx-confirm="Forget {{ person.identity.display_name }}? This deletes their face data and cannot be undone.">
+        <button class="deny" type="submit">Forget</button>
+    </form>
+</div>
+{% endfor %}
+
+<fieldset>
+    <legend>Enrol someone</legend>
+    <form hx-post="/people" hx-encoding="multipart/form-data"
+          hx-target="#enrollment-report" hx-swap="innerHTML">
+        <div class="field">
+            <label for="identity_id">Identifier (lowercase, no spaces — e.g. <code>alex</code>)</label>
+            <input type="text" id="identity_id" name="identity_id" required pattern="[A-Za-z0-9 _-]+">
+        </div>
+        <div class="field">
+            <label for="display_name">Display name (optional)</label>
+            <input type="text" id="display_name" name="display_name">
+        </div>
+        <div class="field">
+            <label for="photos">Photos — 10 to 20, one clear face each, varied light and angle</label>
+            <input type="file" id="photos" name="photos" accept="image/*" multiple required>
+        </div>
+        <button class="primary" type="submit">Inspect and enrol</button>
+        <span class="spinner">reading faces…</span>
+    </form>
+    <div id="enrollment-report"></div>
+</fieldset>
+{% endblock %}

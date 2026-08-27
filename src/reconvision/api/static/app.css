@@ -1,0 +1,371 @@
+/* One stylesheet, no build step. The two screens are small and mostly text; a
+   utility-class framework would be more moving parts than the markup it styles.
+   Class names track the partials in templates/. */
+
+:root {
+    color-scheme: light dark;
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-raised: #1e222b;
+    --border: #2a2f3a;
+    --text: #e7e9ee;
+    --muted: #9aa2b1;
+    --accent: #6ea8fe;
+    --good: #4ec9a5;
+    --warn: #e0a458;
+    --bad: #e06c75;
+    --radius: 10px;
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --bg: #f5f6f8;
+        --panel: #ffffff;
+        --panel-raised: #eef1f4;
+        --border: #d9dde3;
+        --text: #1c2027;
+        --muted: #5b6472;
+        --accent: #2f6fed;
+    }
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* --- chrome ------------------------------------------------------------------ */
+
+header.top {
+    display: flex;
+    align-items: baseline;
+    gap: 1.5rem;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+}
+
+header.top h1 {
+    margin: 0;
+    font-size: 1.05rem;
+    letter-spacing: 0.02em;
+}
+
+header.top nav {
+    display: flex;
+    gap: 1rem;
+}
+
+header.top nav a.current {
+    color: var(--text);
+    font-weight: 600;
+}
+
+main {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+.intro {
+    color: var(--muted);
+    margin: 0 0 1.5rem;
+}
+
+.empty-state {
+    color: var(--muted);
+    text-align: center;
+    padding: 3rem 1rem;
+}
+
+/* --- review: filters ------------------------------------------------------- */
+
+.filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.filters a {
+    padding: 0.2rem 0.7rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.filters a.current {
+    color: var(--text);
+    border-color: var(--accent);
+}
+
+/* --- review: one event row (partials/event_row.html) --------------------- */
+
+.event {
+    display: grid;
+    grid-template-columns: 96px 1fr auto;
+    gap: 1rem;
+    align-items: start;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--panel);
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.event--unknown_person,
+.event--unidentified {
+    border-left-color: var(--warn);
+}
+
+.event--known_person {
+    border-left-color: var(--good);
+}
+
+.thumb {
+    width: 96px;
+    height: 96px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: var(--panel-raised);
+}
+
+.thumb--absent {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 0.75rem;
+}
+
+.event-meta .stamp {
+    font-variant-numeric: tabular-nums;
+}
+
+.event-meta .camera {
+    color: var(--muted);
+}
+
+.verdict {
+    margin: 0.25rem 0;
+    font-weight: 600;
+}
+
+.verdict--known_person {
+    color: var(--good);
+}
+
+.verdict--unknown_person,
+.verdict--unidentified {
+    color: var(--warn);
+}
+
+.scale {
+    position: relative;
+    height: 6px;
+    margin: 0.6rem 0 0.3rem;
+}
+
+.scale-track {
+    position: absolute;
+    inset: 0;
+    border-radius: 3px;
+    background: var(--panel-raised);
+}
+
+.scale-threshold {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    width: 2px;
+    background: var(--muted);
+}
+
+.scale-mark {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--accent);
+}
+
+.evidence {
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 150px;
+}
+
+.actions form {
+    display: flex;
+    gap: 0.3rem;
+}
+
+.reviewed {
+    margin: 0;
+    color: var(--good);
+    font-size: 0.85rem;
+}
+
+/* --- forms and buttons -------------------------------------------------- */
+
+button,
+select,
+input[type="text"],
+input[type="file"] {
+    font: inherit;
+    color: var(--text);
+    background: var(--panel-raised);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.35rem 0.7rem;
+}
+
+button {
+    cursor: pointer;
+}
+
+button:hover {
+    border-color: var(--accent);
+}
+
+button.affirm {
+    border-color: var(--good);
+}
+
+button.deny {
+    border-color: var(--bad);
+}
+
+button.primary {
+    background: var(--accent);
+    color: #0b0d12;
+    border-color: var(--accent);
+    font-weight: 600;
+}
+
+.note {
+    margin: 0.5rem 0 0;
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
+    background: var(--panel-raised);
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.note--good {
+    color: var(--good);
+}
+
+.note--warn {
+    color: var(--warn);
+}
+
+/* --- people screen ---------------------------------------------------- */
+
+.person {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--panel);
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.person .count {
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.person .count--thin {
+    color: var(--warn);
+}
+
+fieldset {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin: 1.5rem 0 0;
+}
+
+legend {
+    padding: 0 0.5rem;
+    color: var(--muted);
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-bottom: 0.75rem;
+}
+
+.field label {
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+
+ul.results {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0 0;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.84rem;
+}
+
+ul.results li.accepted {
+    color: var(--good);
+}
+
+ul.results li.skipped {
+    color: var(--muted);
+}
+
+.htmx-request .spinner {
+    display: inline;
+}
+
+.spinner {
+    display: none;
+    color: var(--muted);
+    font-size: 0.85rem;
+}

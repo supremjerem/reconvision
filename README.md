@@ -74,7 +74,28 @@ uv run reconvision eval
 # Watch a source. Animals are classified without any enrolment.
 uv run reconvision run --source webcam:0 --name office
 uv run reconvision run --source ./clip.mp4
+
+# Open the two screens on http://127.0.0.1:8000 (needs the `api` extra).
+uv run reconvision serve
 ```
+
+### The screens
+
+`serve` exposes two pages, and deliberately no live dashboard — watching a feed is
+what the camera's own app is for.
+
+- **Review** lists recent events with their snapshot. Each one has a correction:
+  *correct*, *not a person*, or *reassign to …*. A correction is always recorded for
+  recalibration, and when the snapshot holds one clear, good-quality face it is also
+  added to that person's gallery — a real capture at the real angle and light, worth
+  more than an enrolment photo.
+- **People** shows who is enrolled and how many captures back each one, enrols a new
+  person from uploaded photos (reporting what it found in each), and forgets one —
+  deleting their face data and unnaming their past events.
+
+Bound to localhost by default: the screens show the inside of a home and let anyone
+reaching them delete biometric data, so put a reverse proxy with authentication in
+front before binding a public interface.
 
 ### Choosing the threshold
 
@@ -111,7 +132,7 @@ another tracker touches one adapter instead of the pipeline.
 | `domain/` | Matching, quality rules, temporal voting, port definitions. Pure. |
 | `application/` | Pipeline orchestration, enrollment, feedback loop, evaluation, config. |
 | `adapters/` | Video sources, ONNX detectors, InsightFace, tracking, SQLite, notifiers. |
-| `api/` | FastAPI routes and the two HTMX screens. |
+| `api/` | FastAPI routes, Jinja templates and the two htmx screens. |
 
 See [`docs/adr/`](docs/adr/) for the reasoning behind the significant decisions.
 
@@ -146,7 +167,7 @@ unacceptable for anything that unlocks a door.
 - [x] **6. Enrollment and calibration** — `enroll` and `eval` with ROC and TAR@FAR=1e-3
 - [x] **7. Persistence and alerts** — SQLite WAL, migrations, snapshot retention,
       ntfy / MQTT / webhook fan-out
-- [ ] **8. Web screens** — enrollment review and event correction, feeding the gallery
+- [x] **8. Web screens** — enrollment review and event correction, feeding the gallery
       and the calibration set
 - [ ] **9. Container and CD** — multi-arch images on GHCR, compose bundle with go2rtc,
       CodeQL, Dependabot, branch protection

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Review — ReconVision{% endblock %}
+
+{% block content %}
+<p class="intro">
+    What the cameras decided, most recent first. Tell the system where it was
+    wrong: every correction is kept for recalibration, and a clear one also adds a
+    real camera capture to that person's gallery.
+</p>
+
+{% if cameras %}
+<nav class="filters">
+    <a href="/" class="{{ 'current' if not selected_camera }}">All cameras</a>
+    {% for camera in cameras %}
+    <a href="/?camera={{ camera }}"
+       class="{{ 'current' if camera == selected_camera }}">{{ camera.replace('_', ' ') }}</a>
+    {% endfor %}
+</nav>
+{% endif %}
+
+{% if events %}
+    {% for event in events %}
+        {% include "partials/event_row.html" %}
+    {% endfor %}
+{% else %}
+<p class="empty-state">No events yet. Once <code>reconvision run</code> sees someone, they show up here.</p>
+{% endif %}
+{% endblock %}

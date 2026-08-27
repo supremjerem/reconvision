@@ -449,6 +449,18 @@ def evaluate_threshold(
             f"At that threshold roughly {recommended.true_accept_rate:.0%} of genuine faces "
             f"are recognised, and about 1 stranger in 1000 comparisons is wrongly named."
         )
+        if not skip_public:
+            # Said plainly, because the number looks more authoritative than it is.
+            # LFW is well-lit and roughly frontal; a hallway at night is neither, and
+            # a threshold tuned on the easier images will accept more strangers on
+            # the harder ones.
+            typer.secho(
+                "\nThis was measured mostly on a public dataset of well-lit, roughly "
+                "frontal photographs.\nYour cameras are harder than that, so treat it as "
+                "a floor: start higher, confirm\nevents in the review screen, and run this "
+                "again once your own captures are in the gallery.",
+                fg=typer.colors.YELLOW,
+            )
 
 
 def _encode_lfw(
@@ -491,3 +503,46 @@ def _encode_lfw(
                 )
 
     return encoded
+
+
+@app.command()
+def serve(
+    host: Annotated[str, typer.Option("--host", help="Interface to bind.")] = "127.0.0.1",
+    port: Annotated[int, typer.Option("--port", help="Port to listen on.")] = 8000,
+    reload: Annotated[bool, typer.Option("--reload", help="Reload on code changes.")] = False,
+) -> None:
+    """Serve the enrolment and correction screens.
+
+    Bound to localhost by default. These screens show photographs of the inside of
+    a home and let anyone reaching them delete a person's biometric data, so
+    exposing them to a network is a decision to make deliberately - put them
+    behind a reverse proxy with authentication rather than binding 0.0.0.0.
+    """
+    settings = Settings()
+    configure_telemetry(settings)
+
+    try:
+        from granian import Granian
+        from granian.constants import Interfaces
+    except ImportError:
+        typer.secho(
+            "Serving needs the api extra: uv sync --extra api", fg=typer.colors.RED, err=True
+        )
+        raise typer.Exit(code=1) from None
+
+    if host != "127.0.0.1":
+        typer.secho(
+            f"Binding {host}: these screens are unauthenticated and show the inside "
+            f"of your home. Put a proxy in front of them.",
+            fg=typer.colors.YELLOW,
+        )
+
+    typer.echo(f"http://{host}:{port}")
+    Granian(
+        "reconvision.api.main:create_app",
+        address=host,
+        port=port,
+        interface=Interfaces.ASGI,
+        factory=True,
+        reload=reload,
+    ).serve()
