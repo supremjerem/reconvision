@@ -112,6 +112,13 @@ class EventRepository(Protocol):
 
     def list_feedback(self) -> Sequence[EventFeedback]: ...
 
+    def delete_older_than(self, cutoff: datetime) -> int:
+        """Forget events that have aged out, returning how many went.
+
+        Part of the contract rather than an optional extra: a store of who walked
+        through a house must be able to forget.
+        """
+
 
 @runtime_checkable
 class SnapshotStore(Protocol):

@@ -295,3 +295,29 @@ def test_a_thin_margin_between_two_household_members_reports_unknown(
     assert events[0].verdict is not EventVerdict.KNOWN_PERSON
     assert events[0].identity_id is None
     assert events[0].is_noteworthy
+
+
+def test_a_person_with_no_usable_face_still_gets_a_snapshot(
+    telemetry: Telemetry, rng: np.random.Generator
+) -> None:
+    """The event a human most wants a picture of - someone was here and the system
+    could not say who - must not be the one arriving with nothing to look at."""
+    pipeline = build(
+        telemetry,
+        walking(),
+        faces=[unusable_face(random_embedding(rng))],
+        gallery=[],
+    )
+
+    observed = list(pipeline.events())
+
+    assert observed[0].event.verdict is EventVerdict.UNIDENTIFIED
+    assert observed[0].snapshot is not None
+
+
+def test_an_animal_event_carries_a_snapshot(telemetry: Telemetry) -> None:
+    pipeline = build(telemetry, walking(label="cat"), faces=[], gallery=[])
+
+    observed = list(pipeline.events())
+
+    assert observed[0].snapshot is not None

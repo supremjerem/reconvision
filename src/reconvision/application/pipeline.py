@@ -205,6 +205,13 @@ class RecognitionPipeline:
                 state.best_frame = frame
             return
 
+        # A person whose face is never usable would otherwise produce the one event
+        # a human most wants a picture of - someone was here and the system could
+        # not say who - with nothing to look at. Any frame is kept as a fallback,
+        # and replaced as soon as a real face turns up.
+        if state.best_frame is None:
+            state.best_frame = frame
+
         self._recognise(state, subject.detection, frame)
 
     def _recognise(self, state: _TrackState, detection: Detection, frame: Frame) -> None:

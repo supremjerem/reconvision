@@ -97,6 +97,12 @@ class InMemoryEventRepository:
     def list_feedback(self) -> Sequence[EventFeedback]:
         return list(self._feedback)
 
+    def delete_older_than(self, cutoff: datetime) -> int:
+        expired = [event_id for event_id, event in self._events.items() if event.ended_at < cutoff]
+        for event_id in expired:
+            del self._events[event_id]
+        return len(expired)
+
 
 class RecordingNotifier:
     """Captures what would have been sent, so delivery can be asserted on."""

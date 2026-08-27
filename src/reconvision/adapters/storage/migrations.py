@@ -37,6 +37,44 @@ MIGRATIONS: Sequence[tuple[int, str, tuple[str, ...]]] = (
             "CREATE INDEX idx_gallery_identity ON gallery_entries(identity_id)",
         ),
     ),
+    (
+        2,
+        "recognition events and user corrections",
+        (
+            """
+            CREATE TABLE events (
+                event_id         TEXT PRIMARY KEY,
+                camera_name      TEXT NOT NULL,
+                verdict          TEXT NOT NULL,
+                subject_kind     TEXT NOT NULL,
+                identity_id      TEXT REFERENCES identities(identity_id) ON DELETE SET NULL,
+                animal_label     TEXT,
+                started_at       TEXT NOT NULL,
+                ended_at         TEXT NOT NULL,
+                confidence       REAL NOT NULL,
+                best_similarity  REAL NOT NULL,
+                observations     INTEGER NOT NULL,
+                snapshot_id      TEXT
+            )
+            """,
+            # The review screen and the retention sweep both read by time, newest
+            # first, so the index matches that rather than the primary key.
+            "CREATE INDEX idx_events_started ON events(started_at DESC)",
+            "CREATE INDEX idx_events_camera ON events(camera_name, started_at DESC)",
+            """
+            CREATE TABLE event_feedback (
+                feedback_id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id               TEXT NOT NULL
+                                       REFERENCES events(event_id) ON DELETE CASCADE,
+                label                  TEXT NOT NULL,
+                corrected_identity_id  TEXT
+                                       REFERENCES identities(identity_id) ON DELETE SET NULL,
+                submitted_at           TEXT NOT NULL
+            )
+            """,
+            "CREATE INDEX idx_feedback_event ON event_feedback(event_id)",
+        ),
+    ),
 )
 
 

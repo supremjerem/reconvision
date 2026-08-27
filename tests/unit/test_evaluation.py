@@ -6,6 +6,8 @@ operating points is checked exactly rather than approximately.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -13,6 +15,8 @@ from reconvision.application.evaluation import (
     LabelledEmbedding,
     evaluate,
     format_distribution,
+    load_embeddings,
+    save_embeddings,
     score_pairs,
 )
 from tests.unit.conftest import nearby_embedding, random_embedding
@@ -185,3 +189,57 @@ def test_a_rate_too_strict_for_the_sample_admits_nobody(rng: np.random.Generator
     strictest = min(report.operating_points, key=lambda point: point.false_accept_rate)
 
     assert float(np.mean(report.impostor_scores >= strictest.threshold)) == 0.0
+
+
+def test_the_equal_error_rate_scales_to_a_realistic_measurement(
+    rng: np.random.Generator,
+) -> None:
+    """A real run produces millions of impostor pairs. Treating every observed
+    score as a candidate threshold is quadratic and simply never returns, so this
+    pins the size the implementation has to cope with."""
+    import time
+
+    report = evaluate(population(rng, people=120, photos=8))
+    assert report.impostor_pairs > 400_000
+
+    started = time.perf_counter()
+    rate = report.equal_error_rate
+    elapsed = time.perf_counter() - started
+
+    assert 0.0 <= rate <= 1.0
+    assert elapsed < 5.0
+
+
+def test_cached_descriptors_round_trip(tmp_path: Path, rng: np.random.Generator) -> None:
+    """Encoding the public dataset takes minutes; choosing a threshold is naturally
+    iterative. The cache is what makes that loop bearable."""
+    original = population(rng, people=4, photos=3)
+    path = tmp_path / "cache.npz"
+
+    save_embeddings(path, original)
+    restored = load_embeddings(path)
+
+    assert restored is not None
+    assert [item.identity_id for item in restored] == [item.identity_id for item in original]
+    assert np.allclose(restored[0].embedding, original[0].embedding)
+
+
+def test_a_missing_cache_is_not_an_error(tmp_path: Path) -> None:
+    assert load_embeddings(tmp_path / "absent.npz") is None
+
+
+def test_a_corrupt_cache_is_discarded_rather_than_repaired(tmp_path: Path) -> None:
+    """A cache written by a different model version would silently corrupt the one
+    measurement the system's accuracy is read from."""
+    path = tmp_path / "cache.npz"
+    path.write_bytes(b"not an npz archive")
+
+    assert load_embeddings(path) is None
+
+
+def test_an_empty_population_can_be_cached(tmp_path: Path) -> None:
+    path = tmp_path / "cache.npz"
+
+    save_embeddings(path, [])
+
+    assert load_embeddings(path) == []

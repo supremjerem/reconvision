@@ -125,13 +125,13 @@ files = ["src", "tests"]
 
 # Third-party packages that ship no type information.
 [[tool.mypy.overrides]]
-module = ["insightface.*", "cv2.*", "supervision.*", "onnxruntime.*", "paho.*", "trackers.*"]
+module = ["insightface.*", "cv2.*", "supervision.*", "onnxruntime.*", "trackers.*"]
 ignore_missing_imports = true
 
 # Ultralytics ships type information but does not re-export YOLO in __all__,
 # even though `from ultralytics import YOLO` is its documented entry point.
 [[tool.mypy.overrides]]
-module = ["ultralytics.*"]
+module = ["ultralytics.*", "paho.*"]
 implicit_reexport = true
 
 [tool.pytest.ini_options]

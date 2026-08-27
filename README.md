@@ -144,7 +144,7 @@ unacceptable for anything that unlocks a door.
 - [x] **5. Detection and recognition** — YOLO11 ONNX export, person/animal detection,
       InsightFace embeddings, ByteTrack, full pipeline
 - [x] **6. Enrollment and calibration** — `enroll` and `eval` with ROC and TAR@FAR=1e-3
-- [ ] **7. Persistence and alerts** — SQLite WAL, migrations, snapshot retention,
+- [x] **7. Persistence and alerts** — SQLite WAL, migrations, snapshot retention,
       ntfy / MQTT / webhook fan-out
 - [ ] **8. Web screens** — enrollment review and event correction, feeding the gallery
       and the calibration set

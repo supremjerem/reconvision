@@ -5,6 +5,7 @@ from __future__ import annotations
 import signal
 from collections import Counter
 from pathlib import Path
+from time import perf_counter
 from types import FrameType
 from typing import Annotated
 
@@ -21,8 +22,12 @@ from reconvision.adapters.faces.lfw import (
 from reconvision.adapters.images import read_image
 from reconvision.adapters.video.sources import VideoSourceError
 from reconvision.application.assembly import (
+    SystemClock,
     build_enrollment_service,
+    build_notifier,
     build_pipeline,
+    build_snapshot_store,
+    open_events,
     open_gallery,
 )
 from reconvision.application.config import (
@@ -36,10 +41,16 @@ from reconvision.application.evaluation import (
     LabelledEmbedding,
     evaluate,
     format_distribution,
+    load_embeddings,
+    save_embeddings,
 )
+from reconvision.application.recording import EventRecorder
 from reconvision.application.telemetry import configure_telemetry
 from reconvision.domain.events import EventVerdict, RecognitionEvent
 from reconvision.domain.models import Identity
+
+#: How often the long encoding pass reports progress.
+_PROGRESS_EVERY = 250
 
 app = typer.Typer(
     name="reconvision",
@@ -151,9 +162,24 @@ def run(
             gallery=gallery,
             telemetry=telemetry,
         )
+        recorder = EventRecorder(
+            events=open_events(settings),
+            snapshots=build_snapshot_store(settings),
+            notifier=build_notifier(settings, telemetry),
+            clock=SystemClock(),
+            retention_days=settings.snapshot_retention_days,
+        )
     except (FileNotFoundError, VideoSourceError) as error:
         typer.secho(str(error), fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from None
+
+    channels = settings.enabled_notifiers
+    typer.echo(f"Alerts: {', '.join(channels) if channels else 'none configured'}")
+
+    # Applied at startup rather than on a timer: a home deployment is restarted
+    # far more often than it runs for a month, and a background sweep is a moving
+    # part that can silently stop.
+    recorder.purge_expired()
 
     stopping = False
 
@@ -169,8 +195,9 @@ def run(
     counts: Counter[str] = Counter()
     try:
         for observed in pipeline.events():
-            counts[observed.event.verdict.value] += 1
-            typer.echo(_describe(observed.event))
+            stored = recorder.record(observed)
+            counts[stored.verdict.value] += 1
+            typer.echo(_describe(stored))
             if stopping or (max_frames is not None and pipeline.analysed_frames >= max_frames):
                 break
     finally:
@@ -186,8 +213,13 @@ def run(
 
 
 def _describe(event: RecognitionEvent) -> str:
-    """One human-readable line per passage."""
-    when = event.started_at.strftime("%H:%M:%S")
+    """One human-readable line per passage.
+
+    Times are stored in UTC so that retention and ordering survive daylight-saving
+    changes, but shown in local time: "unknown person at 03:12" is only alarming
+    if 03:12 is the reader's own clock.
+    """
+    when = event.started_at.astimezone().strftime("%H:%M:%S")
     if event.verdict is EventVerdict.ANIMAL:
         return f"{when}  animal ({event.animal_label})"
     if event.verdict is EventVerdict.KNOWN_PERSON:
@@ -318,6 +350,9 @@ def evaluate_threshold(
     show_distribution: Annotated[
         bool, typer.Option("--distribution/--no-distribution", help="Print score histograms.")
     ] = True,
+    refresh: Annotated[
+        bool, typer.Option("--refresh", help="Re-encode the public dataset, ignoring the cache.")
+    ] = False,
 ) -> None:
     """Measure recognition accuracy and recommend a threshold.
 
@@ -351,12 +386,25 @@ def evaluate_threshold(
         typer.echo(f"Enrolled: {len(enrolled)} embedding(s) across your own identities.")
 
     if not skip_public:
-        typer.echo(f"Encoding up to {lfw_people} LFW identities (first run downloads ~180 MB) ...")
-        try:
-            labelled += _encode_lfw(analyzer, settings.data_dir, lfw_people)
-        except DatasetUnavailableError as error:
-            typer.secho(f"Public dataset unavailable: {error}", fg=typer.colors.YELLOW, err=True)
-            typer.echo("Continuing with enrolled identities only.")
+        cache = settings.data_dir / f"lfw_embeddings_{lfw_people}.npz"
+        cached = None if refresh else load_embeddings(cache)
+        if cached is not None:
+            typer.echo(f"Reusing {len(cached)} cached LFW descriptors ({cache.name}).")
+            labelled += cached
+        else:
+            typer.echo(
+                f"Encoding up to {lfw_people} LFW identities "
+                f"(first run downloads ~240 MB, then takes several minutes) ..."
+            )
+            try:
+                encoded = _encode_lfw(analyzer, settings.data_dir, lfw_people)
+                save_embeddings(cache, encoded)
+                labelled += encoded
+            except DatasetUnavailableError as error:
+                typer.secho(
+                    f"Public dataset unavailable: {error}", fg=typer.colors.YELLOW, err=True
+                )
+                typer.echo("Continuing with enrolled identities only.")
 
     report = evaluate(labelled)
 
@@ -408,14 +456,19 @@ def _encode_lfw(
 ) -> list[LabelledEmbedding]:
     """Embed a slice of LFW, skipping photographs with no clearly usable face."""
     root = ensure_lfw(data_dir)
+    selected = list(iter_people(root, limit=people))
+    total_photos = sum(len(person.photos) for person in selected)
     encoded: list[LabelledEmbedding] = []
+    started = perf_counter()
 
-    with typer.progressbar(list(iter_people(root, limit=people)), label="Encoding") as people_bar:
-        for person in people_bar:
-            for photo in person.photos:
-                image = read_image(photo)
-                if image is None:
-                    continue
+    typer.echo(f"  {len(selected)} identities, {total_photos} photographs.")
+
+    processed = 0
+    for person in selected:
+        for photo in person.photos:
+            processed += 1
+            image = read_image(photo)
+            if image is not None:
                 faces = analyzer.analyse(image)
                 # One face only: a group photograph would attach a bystander's
                 # descriptor to this person's label and corrupt the measurement.
@@ -425,4 +478,16 @@ def _encode_lfw(
                             identity_id=person.identity_id, embedding=faces[0].embedding
                         )
                     )
+
+            # Progress is printed rather than drawn, because a progress bar renders
+            # nothing when output is redirected to a file - which is exactly how a
+            # ten-minute command gets run, and exactly when it looks hung.
+            if processed % _PROGRESS_EVERY == 0 or processed == total_photos:
+                elapsed = perf_counter() - started
+                remaining = (elapsed / processed) * (total_photos - processed)
+                typer.echo(
+                    f"  {processed}/{total_photos} photographs, "
+                    f"{len(encoded)} usable, ~{remaining / 60:.1f} min remaining"
+                )
+
     return encoded

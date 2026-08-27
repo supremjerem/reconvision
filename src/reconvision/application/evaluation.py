@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 
@@ -94,9 +95,19 @@ class EvaluationReport:
         if not self.genuine_pairs or not self.impostor_pairs:
             return 1.0
 
-        thresholds = np.unique(np.concatenate([self.genuine_scores, self.impostor_scores]))
-        false_accepts = np.array([np.mean(self.impostor_scores >= t) for t in thresholds])
-        false_rejects = np.array([np.mean(self.genuine_scores < t) for t in thresholds])
+        # Swept over a fixed grid with binary search rather than over every observed
+        # score. A realistic run produces ten million impostor pairs, and evaluating
+        # each as a candidate threshold against all the others is quadratic - around
+        # 10^14 comparisons, which does not finish. Sorting once and searching turns
+        # it into a couple of seconds, and a grid step of 5e-4 in cosine space is far
+        # finer than any threshold anyone would act on.
+        genuine = np.sort(self.genuine_scores)
+        impostor = np.sort(self.impostor_scores)
+        thresholds = np.linspace(-1.0, 1.0, 4001)
+
+        false_accepts = 1.0 - np.searchsorted(impostor, thresholds, side="left") / impostor.size
+        false_rejects = np.searchsorted(genuine, thresholds, side="left") / genuine.size
+
         crossing = int(np.argmin(np.abs(false_accepts - false_rejects)))
         return float((false_accepts[crossing] + false_rejects[crossing]) / 2)
 
@@ -192,4 +203,46 @@ def format_distribution(scores: np.ndarray, buckets: int = 20) -> list[str]:
     return [
         f"{edges[index]:+.2f}  {'#' * round(40 * count / peak):<40} {count}"
         for index, count in enumerate(counts)
+    ]
+
+
+def save_embeddings(path: Path, labelled: Sequence[LabelledEmbedding]) -> None:
+    """Cache encoded descriptors so calibration can be repeated cheaply.
+
+    Encoding the public dataset takes minutes, and choosing a threshold is
+    naturally an iterative act: try a rate, look at the trade-off, try another.
+    Paying the encoding cost once makes that loop bearable.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(
+        path,
+        identities=np.array([item.identity_id for item in labelled]),
+        embeddings=np.stack([item.embedding for item in labelled])
+        if labelled
+        else np.empty((0, 512), dtype=np.float32),
+    )
+
+
+def load_embeddings(path: Path) -> list[LabelledEmbedding] | None:
+    """Read cached descriptors, or None if unusable.
+
+    A cache written by a different model version would silently corrupt the
+    measurement, so anything that does not load cleanly is discarded rather than
+    repaired.
+    """
+    if not path.exists():
+        return None
+    try:
+        with np.load(path, allow_pickle=False) as archive:
+            identities = archive["identities"]
+            embeddings = archive["embeddings"]
+    except (OSError, ValueError, KeyError):
+        return None
+
+    if len(identities) != len(embeddings):
+        return None
+
+    return [
+        LabelledEmbedding(identity_id=str(identity), embedding=embedding)
+        for identity, embedding in zip(identities, embeddings, strict=True)
     ]
