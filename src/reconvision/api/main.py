@@ -12,8 +12,9 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Annotated
 
-from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -39,7 +40,11 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        app.state.services = services or build_services(resolved_settings)
+        # Only built here when nothing was injected: loading 360 MB of weights is
+        # worth deferring to startup, but an injected set is ready now, and a test
+        # should not have to enter a context manager to reach it.
+        if getattr(app.state, "services", None) is None:
+            app.state.services = build_services(resolved_settings)
         yield
         app.state.services.close()
 
@@ -50,6 +55,7 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
         docs_url="/api/docs",
         openapi_url="/api/openapi.json",
     )
+    app.state.services = services
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
     templates.env.filters["local_time"] = _local_time
@@ -105,8 +111,8 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     def submit_feedback(
         request: Request,
         event_id: str,
-        label: str = Form(...),
-        identity_id: str | None = Form(None),
+        label: Annotated[str, Form()],
+        identity_id: Annotated[str | None, Form()] = None,
     ) -> HTMLResponse:
         """Record a correction and swap the row for its result."""
         services = current(request)
@@ -135,9 +141,9 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     @app.post("/people", response_class=HTMLResponse)
     async def enroll_person(
         request: Request,
-        identity_id: str = Form(...),
-        display_name: str = Form(""),
-        photos: list[UploadFile] = [],  # noqa: B006  # FastAPI reads this as a form field
+        identity_id: Annotated[str, Form()],
+        photos: Annotated[list[UploadFile], File()],
+        display_name: Annotated[str, Form()] = "",
     ) -> HTMLResponse:
         """Inspect uploaded photographs and enrol the usable ones."""
         services = current(request)

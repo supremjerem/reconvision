@@ -1,28 +1,40 @@
 {% extends "base.html" %}
-{% block title %}Review — ReconVision{% endblock %}
+{% set page = 'review' %}
+{% block title %}Events · ReconVision{% endblock %}
 
 {% block content %}
-<p class="intro">
-    What the cameras decided, most recent first. Tell the system where it was
-    wrong: every correction is kept for recalibration, and a clear one also adds a
-    real camera capture to that person's gallery.
-</p>
+<div class="section-head">
+  <h2>Recent events</h2>
+  <span class="count">{{ events | length }} shown · threshold {{ "%.2f"|format(threshold) }}</span>
+</div>
 
-{% if cameras %}
-<nav class="filters">
-    <a href="/" class="{{ 'current' if not selected_camera }}">All cameras</a>
-    {% for camera in cameras %}
-    <a href="/?camera={{ camera }}"
-       class="{{ 'current' if camera == selected_camera }}">{{ camera.replace('_', ' ') }}</a>
-    {% endfor %}
-</nav>
+{% if cameras | length > 1 %}
+<div class="filters">
+  <a href="/" aria-current="{{ 'true' if not selected_camera else 'false' }}">all cameras</a>
+  {% for name in cameras %}
+  <a href="/?camera={{ name }}"
+     aria-current="{{ 'true' if selected_camera == name else 'false' }}">{{ name.replace('_', ' ') }}</a>
+  {% endfor %}
+</div>
 {% endif %}
 
-{% if events %}
-    {% for event in events %}
-        {% include "partials/event_row.html" %}
-    {% endfor %}
+{% if not events %}
+<div class="empty">
+  <strong>Nothing recorded yet</strong>
+  Point a camera at something and run <code>reconvision run --source webcam:0</code>.
+  Events appear here as people and animals pass in front of it.
+</div>
 {% else %}
-<p class="empty-state">No events yet. Once <code>reconvision run</code> sees someone, they show up here.</p>
+<div class="events">
+  {% for event in events %}
+  {% include "partials/event_row.html" %}
+  {% endfor %}
+</div>
+<p class="note">
+  Each correction does two things: it adds a capture taken by the real camera, in
+  the real light, which is worth more to the matcher than any enrolment portrait,
+  and it builds a labelled set from your own footage so
+  <code>reconvision eval</code> can recalibrate against reality.
+</p>
 {% endif %}
 {% endblock %}

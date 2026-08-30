@@ -4,7 +4,12 @@ Face recognition on home video streams. It watches your cameras and tells you wh
 what just walked past is **you**, a **stranger**, or an **animal** — and pushes that to
 your phone.
 
-![ReconVision pipeline](docs/architecture.svg)
+![The review screen: six events, each showing where its similarity landed against the calibrated threshold](docs/review-screen.png)
+
+<sub>The review screen. The scale on each row is the point: the tick is your calibrated
+threshold, the dot is where that face actually scored. `guest` at 0.51 was a close call;
+`jeremie` at 0.74 was not. Snapshots above are synthetic — a public repository about face
+recognition has no business containing photographs of faces.</sub>
 
 ## What it does
 
@@ -126,6 +131,8 @@ behind a `Protocol` port in `domain/ports.py` and is implemented in `adapters/`.
 That separation is not ceremony: it is why the domain test suite runs in under a second
 with no model and no camera, and why swapping SQLite for PostgreSQL or ByteTrack for
 another tracker touches one adapter instead of the pipeline.
+
+![Pipeline](docs/architecture.svg)
 
 | Layer | Responsibility |
 |---|---|

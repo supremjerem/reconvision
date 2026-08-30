@@ -1,10 +1,2 @@
-{#
-  Swapped into #actions-<event_id> after a correction. Inner content only: the
-  surrounding .actions container stays.
-#}
-<p class="reviewed">Thanks — recorded.</p>
-{% if outcome.improved_recognition %}
-<p class="note note--good">{{ outcome.reason }}. That capture will help recognise them next time.</p>
-{% else %}
-<p class="note">{{ outcome.reason }}.</p>
-{% endif %}
+{# Swapped in place of the buttons, so the row reports what the correction did. #}
+<p class="result">{{ outcome.reason }}</p>

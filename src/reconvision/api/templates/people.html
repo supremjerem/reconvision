@@ -1,50 +1,69 @@
 {% extends "base.html" %}
-{% block title %}People — ReconVision{% endblock %}
+{% set page = 'people' %}
+{% block title %}People · ReconVision{% endblock %}
 
 {% block content %}
-<p class="intro">
-    Everyone the system has been taught to recognise, and how many face captures
-    back each one. Ten or more, across different light and angles, is where
-    recognition gets reliable.
-</p>
+<div class="section-head">
+  <h2>Enrol someone</h2>
+</div>
+
+<form class="panel"
+      hx-post="/people"
+      hx-target="#enrollment-report"
+      hx-swap="innerHTML"
+      hx-encoding="multipart/form-data">
+  <div class="field">
+    <label for="identity_id">Short name</label>
+    <input type="text" id="identity_id" name="identity_id" required
+           placeholder="jeremie" autocomplete="off" />
+  </div>
+  <div class="field">
+    <label for="display_name">Full name</label>
+    <input type="text" id="display_name" name="display_name"
+           placeholder="Jeremie" autocomplete="off" />
+  </div>
+  <div class="field">
+    <label for="photos">Photographs</label>
+    <input type="file" id="photos" name="photos" accept="image/*" multiple required />
+  </div>
+  <button type="submit">Inspect and enrol</button>
+  <p class="note">
+    Ten to twenty photographs, across different light and angles. Each one is
+    reported below before anything is stored. A photograph containing more than one
+    face is skipped rather than guessed at: enrolling the wrong face produces no
+    error and makes every later comparison wrong.
+  </p>
+</form>
+
+<div id="enrollment-report"></div>
+
+<div class="section-head">
+  <h2>Known people</h2>
+  <span class="count">{{ people | length }}</span>
+</div>
 
 {% if not people %}
-<p class="empty-state">Nobody enrolled yet. Add someone below.</p>
-{% endif %}
-
-{% for person in people %}
-<div class="person" id="person-{{ person.identity.identity_id }}">
-    <div>
-        <strong>{{ person.identity.display_name }}</strong>
-        <span class="count {{ 'count--thin' if person.entries < 10 }}">{{ person.entries }} capture(s)</span>
-    </div>
-    <form hx-post="/people/{{ person.identity.identity_id }}/forget"
-          hx-target="#person-{{ person.identity.identity_id }}" hx-swap="outerHTML"
-          hx-confirm="Forget {{ person.identity.display_name }}? This deletes their face data and cannot be undone.">
-        <button class="deny" type="submit">Forget</button>
-    </form>
+<div class="empty">
+  <strong>Nobody is enrolled</strong>
+  Until someone is, every person is reported as unknown. Animals are detected
+  without any enrolment.
 </div>
-{% endfor %}
-
-<fieldset>
-    <legend>Enrol someone</legend>
-    <form hx-post="/people" hx-encoding="multipart/form-data"
-          hx-target="#enrollment-report" hx-swap="innerHTML">
-        <div class="field">
-            <label for="identity_id">Identifier (lowercase, no spaces — e.g. <code>alex</code>)</label>
-            <input type="text" id="identity_id" name="identity_id" required pattern="[A-Za-z0-9 _-]+">
-        </div>
-        <div class="field">
-            <label for="display_name">Display name (optional)</label>
-            <input type="text" id="display_name" name="display_name">
-        </div>
-        <div class="field">
-            <label for="photos">Photos — 10 to 20, one clear face each, varied light and angle</label>
-            <input type="file" id="photos" name="photos" accept="image/*" multiple required>
-        </div>
-        <button class="primary" type="submit">Inspect and enrol</button>
-        <span class="spinner">reading faces…</span>
+{% else %}
+<div class="people-list">
+  {% for person in people %}
+  <div class="person" id="person-{{ person.identity.identity_id }}">
+    <span class="person-name">{{ person.identity.display_name }}</span>
+    <span class="evidence">
+      {{ person.entries }} descriptor{{ '' if person.entries == 1 else 's' }}
+      {%- if person.entries < 10 %} · thin gallery{% endif %}
+    </span>
+    <form hx-post="/people/{{ person.identity.identity_id }}/forget"
+          hx-target="#person-{{ person.identity.identity_id }}"
+          hx-swap="innerHTML">
+      <button class="deny" type="submit">Forget</button>
     </form>
-    <div id="enrollment-report"></div>
-</fieldset>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
 {% endblock %}

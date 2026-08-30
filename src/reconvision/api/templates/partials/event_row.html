@@ -1,7 +1,7 @@
 {#
-  One passage, one row. The scale is the point: it shows not just what the system
-  decided but how close the call was, which is what tells a person whether the
-  threshold needs moving.
+  One passage, one row. The scale is the point of the screen: it shows not only
+  what the system decided but how close the call was, which is what tells a person
+  whether the threshold needs moving.
 #}
 <article class="event event--{{ event.verdict.value }}" id="event-{{ event.event_id }}">
   {% if event.snapshot_id %}
@@ -31,20 +31,33 @@
       {%- endif -%}
     </p>
 
-    {% if event.subject_kind.value == 'person' %}
+    {% if event.subject_kind.value == 'person' and event.best_similarity >= 0 %}
     <div class="scale" role="img"
-         aria-label="Best similarity {{ '%.2f'|format(event.best_similarity) }}, threshold {{ '%.2f'|format(threshold) }}">
-      <div class="scale-track"></div>
-      <div class="scale-threshold" style="left: {{ threshold | scale_position }}%"></div>
-      <div class="scale-mark" style="left: {{ event.best_similarity | scale_position }}%"></div>
+         aria-label="Best similarity {{ '%.2f'|format(event.best_similarity) }} against a threshold of {{ '%.2f'|format(threshold) }}">
+      <span class="scale-track"></span>
+      <span class="scale-threshold" style="left: {{ threshold | scale_position }}%"></span>
+      <span class="scale-mark" style="left: {{ event.best_similarity | scale_position }}%"></span>
     </div>
     <div class="evidence">
       best {{ "%.2f"|format(event.best_similarity) }} ·
-      {{ event.observations }} frames · {{ "%.0f"|format(event.duration_seconds) }}s
+      {{ event.observations }} frames ·
+      {{ "%.0f"|format(event.duration_seconds) }}s
+    </div>
+    {% elif event.subject_kind.value == 'person' %}
+    {#
+      No comparison happened - nobody is enrolled, or no face was ever usable.
+      Drawing the scale here would put a dot at zero and read as "measured, and
+      very low", which is a different and wrong statement.
+    #}
+    <div class="evidence">
+      not compared ·
+      {{ event.observations }} frames ·
+      {{ "%.0f"|format(event.duration_seconds) }}s
     </div>
     {% else %}
     <div class="evidence">
-      {{ event.observations }} frames · {{ "%.0f"|format(event.duration_seconds) }}s ·
+      {{ event.observations }} frames ·
+      {{ "%.0f"|format(event.duration_seconds) }}s ·
       face model not used
     </div>
     {% endif %}
@@ -53,7 +66,9 @@
   <div class="actions" id="actions-{{ event.event_id }}">
     {% if event.event_id in reviewed %}
     <p class="reviewed">already corrected</p>
-    {% elif event.subject_kind.value == 'person' %}
+    {% elif event.subject_kind.value != 'person' %}
+    <p class="reviewed">nothing to correct</p>
+    {% else %}
       {% if event.verdict.value == 'known_person' %}
       <form hx-post="/events/{{ event.event_id }}/feedback"
             hx-target="#actions-{{ event.event_id }}" hx-swap="innerHTML">
@@ -64,7 +79,7 @@
       <form hx-post="/events/{{ event.event_id }}/feedback"
             hx-target="#actions-{{ event.event_id }}" hx-swap="innerHTML">
         <input type="hidden" name="label" value="wrong_identity" />
-        <label class="visually-hidden" for="who-{{ event.event_id }}">Who was it</label>
+        <label class="visually-hidden" for="who-{{ event.event_id }}">Who it actually was</label>
         <select id="who-{{ event.event_id }}" name="identity_id" required>
           <option value="">it was…</option>
           {% for identity in identities %}
@@ -78,8 +93,6 @@
         <input type="hidden" name="label" value="not_a_person" />
         <button class="deny" type="submit">Not a person</button>
       </form>
-    {% else %}
-    <p class="reviewed">nothing to correct</p>
     {% endif %}
   </div>
 </article>

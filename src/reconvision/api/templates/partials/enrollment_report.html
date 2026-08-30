@@ -1,21 +1,22 @@
 {#
-  Swapped into #enrollment-report (innerHTML) after an enrolment attempt.
+  A contact sheet, which is what this is: reviewing frames and striking out the
+  ones that cannot be used. Rejected photographs stay visible with their reason,
+  because "why was that one skipped" is the question a person will have.
 #}
-<p class="note {{ 'note--good' if report.accepted_count and not report.is_thin else 'note--warn' if report.is_thin }}">
-    {{ report.accepted_count }} of {{ report.results | length }} photo(s) enrolled for
-    <strong>{{ report.identity.display_name }}</strong>.
-</p>
+<div class="section-head">
+  <h2>{{ report.identity.display_name }}</h2>
+  <span class="count">{{ report.accepted_count }} of {{ report.results | length }} usable</span>
+</div>
 
 {% for warning in report.warnings() %}
-<p class="note note--warn">{{ warning }}</p>
+<p class="note warn">{{ warning }}</p>
 {% endfor %}
 
-<ul class="results">
-    {% for result in report.results %}
-    <li class="{{ 'accepted' if result.accepted else 'skipped' }}">
-        {{ result.path.name }} — {{ result.describe() }}
-    </li>
-    {% endfor %}
-</ul>
-
-<p class="note">Reload the page to see the updated capture count.</p>
+<div class="sheet">
+  {% for result in report.results %}
+  <div class="crop {{ '' if result.accepted else 'crop--rejected' }}">
+    <div class="crop-name">{{ result.path.name }}</div>
+    <div class="crop-detail">{{ result.describe() }}</div>
+  </div>
+  {% endfor %}
+</div>
