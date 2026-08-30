@@ -176,8 +176,36 @@ unacceptable for anything that unlocks a door.
       ntfy / MQTT / webhook fan-out
 - [x] **8. Web screens** — enrollment review and event correction, feeding the gallery
       and the calibration set
-- [ ] **9. Container and CD** — multi-arch images on GHCR, compose bundle with go2rtc,
+- [x] **9. Container and CD** — multi-arch images on GHCR, compose bundle with go2rtc,
       CodeQL, Dependabot, branch protection
+
+## Running it on a NAS
+
+```bash
+cd docker
+cp ../.env.example .env                       # then edit it
+cp ../cameras.example.yaml cameras.yaml       # then edit it
+cp go2rtc.example.yaml go2rtc.yaml            # list your cameras here
+docker compose up -d
+docker compose exec reconvision reconvision export-models
+```
+
+The image is published to `ghcr.io/supremjerem/reconvision` for `linux/amd64` and
+`linux/arm64`, so it runs on an Intel box or an ARM one without changes.
+
+Two containers. [go2rtc](https://github.com/AlexxIT/go2rtc) normalises whatever cameras
+you own — RTSP, ONVIF, or a cloud-only brand — into one stream shape, so the pipeline
+never has to know what you bought. The application reads `rtsp://127.0.0.1:8554/<name>`
+and stays the same whichever camera is behind it.
+
+The runtime image contains no PyTorch: model export happens at development time and
+produces ONNX, which is the difference between a few hundred megabytes and nearly three
+gigabytes (see [ADR 0002](docs/adr/0002-onnx-runtime-instead-of-pytorch-at-runtime.md)).
+CI asserts this on every change, along with the absence of GUI OpenCV, because a
+dependency bump can reintroduce either without anyone noticing.
+
+Port 8000 is bound to localhost. Put a reverse proxy with authentication in front before
+exposing the screens to a network.
 
 ## Development
 

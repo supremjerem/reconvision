@@ -1,0 +1,41 @@
+# ReconVision on a NAS or home server.
+#
+#   cp ../.env.example .env        # then edit it
+#   cp ../cameras.example.yaml cameras.yaml
+#   docker compose up -d
+#
+# Two containers. go2rtc normalises whatever cameras you own - RTSP, ONVIF, or a
+# cloud-only brand - into one stream shape, so the pipeline never needs to know
+# what you bought.
+services:
+  reconvision:
+    image: ghcr.io/supremjerem/reconvision:latest
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: reconvision
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - RECONVISION_DATA_DIR=/data
+    volumes:
+      - reconvision-data:/data
+      - ./cameras.yaml:/app/cameras.yaml:ro
+    ports:
+      # Bound to localhost. The screens are unauthenticated and show the inside of
+      # a home; publishing them on the LAN is a decision to make deliberately, with
+      # a reverse proxy and authentication in front.
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      - go2rtc
+
+  go2rtc:
+    image: alexxit/go2rtc:1.9.9
+    container_name: reconvision-go2rtc
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./go2rtc.yaml:/config/go2rtc.yaml:ro
+
+volumes:
+  reconvision-data:

@@ -80,3 +80,19 @@ def test_survives_a_binary_file_it_cannot_decode(repo: Path) -> None:
     (repo / "notes.txt").write_bytes(b"\xff\xfe\x00\x80 not utf-8")
 
     assert main(["notes.txt"]) == 0
+
+
+def test_allows_any_file_named_as_an_example(repo: Path) -> None:
+    """Example files document the shape of a secret, so they cannot be forbidden
+    from containing one. Matched by convention rather than a list of names, which
+    would silently exclude the next template someone adds."""
+    (repo / "go2rtc.example.yaml").write_text(f"source: rtsp://{CREDENTIALS}@192.168.1.50/s1\n")
+
+    assert main(["go2rtc.example.yaml"]) == 0
+
+
+def test_a_file_merely_mentioning_example_is_not_exempt(repo: Path) -> None:
+    """The exemption is for `*.example.<ext>`, not for anything with the word in it."""
+    (repo / "example-cameras.yaml").write_text(f"source: rtsp://{CREDENTIALS}@192.168.1.50/s1\n")
+
+    assert main(["example-cameras.yaml"]) == 1

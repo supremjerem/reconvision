@@ -65,3 +65,66 @@ jobs:
       - name: Block images, databases and credentials
         run: |
           git ls-files -z | xargs -0 python3 -m reconvision.tooling.privacy_guard
+
+  image:
+    name: Container image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Built on every change rather than only on release. A Dockerfile that has
+      # not been built since the last dependency bump is a Dockerfile that no
+      # longer works, and finding that out during a deploy is too late.
+      - name: Build the runtime image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: false
+          load: true
+          tags: reconvision:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: The image must not carry PyTorch
+        run: |
+          # ADR 0002: model export happens at development time, so the runtime
+          # needs only ONNX Runtime. Torch appearing here would add roughly two
+          # gigabytes to every NAS deployment, silently.
+          if docker run --rm --entrypoint python reconvision:ci \
+               -c "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('torch') is None else 1)"; then
+            echo "No PyTorch in the runtime image."
+          else
+            echo "::error::PyTorch reached the runtime image; see ADR 0002."
+            exit 1
+          fi
+
+      - name: The image must use headless OpenCV
+        run: |
+          docker run --rm --entrypoint python reconvision:ci -c "
+          import importlib.metadata as md
+          installed = {d.metadata['Name'] for d in md.distributions()}
+          assert 'opencv-python' not in installed, 'GUI OpenCV pulls X11 into the image'
+          assert 'opencv-python-headless' in installed
+          print('Headless OpenCV only.')
+          "
+
+      - name: The application starts and reports itself healthy
+        run: |
+          docker run -d --name probe -p 8000:8000 reconvision:ci
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/healthz >/dev/null 2>&1; then
+              echo "Healthy after ${attempt}s."
+              docker rm -f probe
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::The container never became healthy."
+          docker logs probe
+          docker rm -f probe
+          exit 1
