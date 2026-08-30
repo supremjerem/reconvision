@@ -18,7 +18,11 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_PYTHON_DOWNLOADS=never
 
-WORKDIR /build
+# Built at the path the venv will live at in the final image. Console scripts
+# embed an absolute shebang, so a venv built in /build and copied to /app points
+# at an interpreter that no longer exists - and the container fails with an
+# "exec: no such file or directory" that names the script rather than the cause.
+WORKDIR /app
 
 # Dependencies first, sources second: editing application code must not invalidate
 # the layer holding several hundred megabytes of wheels.
@@ -51,7 +55,7 @@ RUN apt-get update \
 RUN groupadd --gid 1000 reconvision \
     && useradd --uid 1000 --gid 1000 --create-home reconvision
 
-COPY --from=builder --chown=reconvision:reconvision /build/.venv /app/.venv
+COPY --from=builder --chown=reconvision:reconvision /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

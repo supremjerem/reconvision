@@ -3,6 +3,9 @@
 {% block title %}People · ReconVision{% endblock %}
 
 {% block content %}
+{% if not models_available %}
+<p class="note warn">{{ models_message }}</p>
+{% endif %}
 <div class="section-head">
   <h2>Enrol someone</h2>
 </div>

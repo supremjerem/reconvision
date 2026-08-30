@@ -20,7 +20,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from reconvision import __version__
-from reconvision.api.dependencies import Services, build_services
+from reconvision.api.dependencies import (
+    MODELS_MISSING_MESSAGE,
+    ModelsUnavailableError,
+    Services,
+    build_services,
+)
 from reconvision.application.config import Settings
 from reconvision.application.enrollment import find_photos
 from reconvision.application.feedback import UnknownEventError
@@ -82,6 +87,8 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
                 "selected_camera": camera,
                 "threshold": services.settings.match_threshold,
                 "reviewed": {f.event_id for f in services.events.list_feedback()},
+                "models_available": services.models_available,
+                "models_message": MODELS_MISSING_MESSAGE,
             },
         )
 
@@ -102,6 +109,8 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
                     }
                     for identity in identities
                 ],
+                "models_available": services.models_available,
+                "models_message": MODELS_MISSING_MESSAGE,
             },
         )
 
@@ -129,6 +138,8 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
             )
         except UnknownEventError:
             raise HTTPException(status_code=404, detail="No such event") from None
+        except ModelsUnavailableError as error:
+            raise HTTPException(status_code=503, detail=str(error)) from None
         except ValueError as error:
             raise HTTPException(status_code=422, detail=str(error)) from None
 
@@ -159,7 +170,10 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
                     (folder / Path(upload.filename).name).write_bytes(await upload.read())
 
             found = find_photos(folder)
-            results = list(services.enrollment.inspect(found))
+            try:
+                results = list(services.enrollment.inspect(found))
+            except ModelsUnavailableError as error:
+                raise HTTPException(status_code=503, detail=str(error)) from None
             report = services.enrollment.enroll(identity, found, results)
 
         return templates.TemplateResponse(

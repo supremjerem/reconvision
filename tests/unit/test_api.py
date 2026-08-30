@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 from reconvision.adapters.storage.snapshots import FileSnapshotStore
 from reconvision.adapters.storage.sqlite_events import SqliteEvents
 from reconvision.adapters.storage.sqlite_gallery import SqliteGallery, connect
-from reconvision.api.dependencies import Services
+from reconvision.api.dependencies import Services, build_services
 from reconvision.api.main import create_app
 from reconvision.application.enrollment import EnrollmentService
 from reconvision.application.feedback import FeedbackService
@@ -322,3 +322,52 @@ def test_health_and_metrics_are_available(client: TestClient, services: Services
 
     assert client.get("/healthz").text == "ok"
     assert "reconvision_events_stored 1" in client.get("/metrics").text
+
+
+# --- starting without models ---------------------------------------------------
+
+
+def missing_models_services(tmp_path: Path) -> Services:
+    """Services exactly as a freshly started container would have them."""
+    settings = build_settings(data_dir=tmp_path / "empty")
+    return build_services(settings)
+
+
+def test_the_screens_work_before_any_model_is_downloaded(tmp_path: Path) -> None:
+    """A container started for the first time has no weights. Refusing to serve
+    would leave someone with a crash-looping container and no page telling them
+    what to do about it."""
+    services = missing_models_services(tmp_path)
+    client = TestClient(create_app(settings=services.settings, services=services))
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "export-models" in response.text
+
+
+def test_the_health_check_passes_without_models(tmp_path: Path) -> None:
+    """The container orchestrator restarts anything reporting unhealthy, so this
+    is what stops a fresh deployment from restart-looping forever."""
+    services = missing_models_services(tmp_path)
+    client = TestClient(create_app(settings=services.settings, services=services))
+
+    assert client.get("/healthz").text == "ok"
+
+
+def test_enrolling_without_models_says_what_to_run(tmp_path: Path) -> None:
+    import cv2
+
+    services = missing_models_services(tmp_path)
+    client = TestClient(create_app(settings=services.settings, services=services))
+    photo = tmp_path / "one.jpg"
+    cv2.imwrite(str(photo), np.full((200, 200, 3), 120, dtype=np.uint8))
+
+    response = client.post(
+        "/people",
+        data={"identity_id": "jeremie"},
+        files=[("photos", ("one.jpg", photo.read_bytes(), "image/jpeg"))],
+    )
+
+    assert response.status_code == 503
+    assert "export-models" in response.json()["detail"]

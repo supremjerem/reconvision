@@ -3,6 +3,9 @@
 {% block title %}Events · ReconVision{% endblock %}
 
 {% block content %}
+{% if not models_available %}
+<p class="note warn">{{ models_message }}</p>
+{% endif %}
 <div class="section-head">
   <h2>Recent events</h2>
   <span class="count">{{ events | length }} shown · threshold {{ "%.2f"|format(threshold) }}</span>
