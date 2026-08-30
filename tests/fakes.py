@@ -1,0 +1,229 @@
+"""In-memory test doubles for the domain ports.
+
+Shared across the suite so later stages test against the same doubles the port
+contracts were validated with, rather than each growing its own drifting version.
+Every one is deliberately simple: a fake that needs its own tests is a liability.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Iterator, Sequence
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+from pydantic_settings import SettingsConfigDict
+
+from reconvision.application.config import Settings
+from reconvision.domain.events import EventFeedback, RecognitionEvent
+from reconvision.domain.models import (
+    BoundingBox,
+    Detection,
+    Face,
+    Frame,
+    GalleryEntry,
+    Identity,
+    TrackedDetection,
+)
+
+
+class FakeClock:
+    """A clock that only moves when a test tells it to."""
+
+    def __init__(self, start: datetime | None = None) -> None:
+        self._now = start or datetime(2026, 8, 26, 12, 0, tzinfo=UTC)
+
+    def now(self) -> datetime:
+        return self._now
+
+    def advance(self, seconds: float) -> None:
+        self._now += timedelta(seconds=seconds)
+
+
+class InMemoryGalleryRepository:
+    """Gallery storage without SQLite."""
+
+    def __init__(self) -> None:
+        self._identities: dict[str, Identity] = {}
+        self._entries: list[GalleryEntry] = []
+
+    def list_identities(self) -> Sequence[Identity]:
+        return list(self._identities.values())
+
+    def add_identity(self, identity: Identity) -> None:
+        self._identities[identity.identity_id] = identity
+
+    def remove_identity(self, identity_id: str) -> None:
+        self._identities.pop(identity_id, None)
+        self._entries = [entry for entry in self._entries if entry.identity_id != identity_id]
+
+    def load_entries(self) -> Sequence[GalleryEntry]:
+        return list(self._entries)
+
+    def add_entry(self, entry: GalleryEntry) -> None:
+        self._entries.append(entry)
+
+
+class InMemoryEventRepository:
+    """Event storage without SQLite."""
+
+    def __init__(self) -> None:
+        self._events: dict[str, RecognitionEvent] = {}
+        self._feedback: list[EventFeedback] = []
+
+    def save(self, event: RecognitionEvent) -> None:
+        self._events[event.event_id] = event
+
+    def get(self, event_id: str) -> RecognitionEvent | None:
+        return self._events.get(event_id)
+
+    def list_recent(
+        self,
+        limit: int = 50,
+        camera_name: str | None = None,
+        since: datetime | None = None,
+    ) -> Sequence[RecognitionEvent]:
+        matches = [
+            event
+            for event in self._events.values()
+            if (camera_name is None or event.camera_name == camera_name)
+            and (since is None or event.started_at >= since)
+        ]
+        matches.sort(key=lambda event: event.started_at, reverse=True)
+        return matches[:limit]
+
+    def save_feedback(self, feedback: EventFeedback) -> None:
+        self._feedback.append(feedback)
+
+    def list_feedback(self) -> Sequence[EventFeedback]:
+        return list(self._feedback)
+
+    def delete_older_than(self, cutoff: datetime) -> int:
+        expired = [event_id for event_id, event in self._events.items() if event.ended_at < cutoff]
+        for event_id in expired:
+            del self._events[event_id]
+        return len(expired)
+
+
+class RecordingNotifier:
+    """Captures what would have been sent, so delivery can be asserted on."""
+
+    def __init__(self, *, fail: bool = False) -> None:
+        self.delivered: list[RecognitionEvent] = []
+        self._fail = fail
+
+    def notify(self, event: RecognitionEvent, snapshot: Frame | None = None) -> None:
+        if self._fail:
+            # Mirrors a real notifier: an unreachable phone is not a reason to
+            # stop watching the cameras, so the failure is swallowed here too.
+            return
+        self.delivered.append(event)
+
+
+class ScriptedFrameSource:
+    """Replays a fixed list of frames, standing in for a camera."""
+
+    def __init__(self, name: str, frames: Sequence[Frame]) -> None:
+        self._name = name
+        self._frames = list(frames)
+        self.closed = False
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    def frames(self) -> Iterator[Frame]:
+        yield from self._frames
+
+    def close(self) -> None:
+        self.closed = True
+
+
+class ScriptedDetector:
+    """Returns pre-arranged detections, one list per successive frame."""
+
+    def __init__(self, per_frame: Sequence[Sequence[Detection]]) -> None:
+        self._per_frame = list(per_frame)
+        self._calls = 0
+
+    def detect(self, frame: Frame) -> Sequence[Detection]:
+        index = min(self._calls, len(self._per_frame) - 1)
+        self._calls += 1
+        return self._per_frame[index] if self._per_frame else []
+
+
+class IsolatedSettings(Settings):
+    """Settings that ignore any .env file present on the machine.
+
+    Without this, a test asserting on a default would pass or fail depending on
+    what the developer happens to have configured locally. Expressed as a config
+    override rather than the `_env_file=None` constructor kwarg, which is a
+    runtime-only argument that type checking cannot see.
+    """
+
+    model_config = SettingsConfigDict(env_prefix="RECONVISION_", env_file=None, extra="ignore")
+
+
+def build_settings(**overrides: Any) -> Settings:
+    """Settings isolated from the developer's environment."""
+    return IsolatedSettings(**overrides)
+
+
+class ScriptedTracker:
+    """Assigns ids by position, so pipeline tests do not depend on ByteTrack.
+
+    Each detection keeps the id of the nearest detection from the previous frame,
+    which is enough to express "the same person across frames" and "two different
+    people" without importing a Kalman filter into a unit test.
+    """
+
+    def __init__(self, association_distance: float = 200.0) -> None:
+        self._association_distance = association_distance
+        self._previous: dict[int, tuple[float, float]] = {}
+        self._next_id = 0
+
+    def update(self, detections: Sequence[Detection]) -> Sequence[TrackedDetection]:
+        assigned: dict[int, tuple[float, float]] = {}
+        tracked: list[TrackedDetection] = []
+
+        for detection in detections:
+            centre = (
+                (detection.box.left + detection.box.right) / 2,
+                (detection.box.top + detection.box.bottom) / 2,
+            )
+            track_id = self._nearest(centre, exclude=set(assigned))
+            if track_id is None:
+                track_id = self._next_id
+                self._next_id += 1
+            assigned[track_id] = centre
+            tracked.append(TrackedDetection(track_id=track_id, detection=detection))
+
+        self._previous = assigned
+        return tracked
+
+    def _nearest(self, centre: tuple[float, float], exclude: set[int]) -> int | None:
+        candidates = {
+            track_id: (position[0] - centre[0]) ** 2 + (position[1] - centre[1]) ** 2
+            for track_id, position in self._previous.items()
+            if track_id not in exclude
+        }
+        if not candidates:
+            return None
+        best = min(candidates, key=lambda track_id: candidates[track_id])
+        return best if candidates[best] <= self._association_distance**2 else None
+
+
+class ScriptedFaceAnalyzer:
+    """Returns a fixed face for any region, or none at all.
+
+    Lets a pipeline test state "this person's face is recognisable" or "this
+    person is filmed from behind" directly, instead of arranging pixels that
+    happen to make a real model say so.
+    """
+
+    def __init__(self, faces: Sequence[Face] = ()) -> None:
+        self._faces = list(faces)
+        self.calls = 0
+
+    def analyse(self, frame: Frame, region: BoundingBox | None = None) -> Sequence[Face]:
+        self.calls += 1
+        return list(self._faces)

@@ -1,0 +1,17 @@
+# go2rtc turns whatever cameras you own into one stream shape.
+#
+# Copy to go2rtc.yaml and list your cameras. ReconVision then reads
+# rtsp://127.0.0.1:8554/<name> from cameras.yaml, and never has to know whether the
+# source behind it speaks RTSP, ONVIF or a manufacturer's own protocol.
+#
+# Credentials come from the environment, so the real ones never reach a file that
+# could be committed or pasted into a bug report.
+streams:
+  living_room: rtsp://${CAMERA_USER}:${CAMERA_PASSWORD}@192.168.1.50:554/stream1
+  hall: rtsp://${CAMERA_USER}:${CAMERA_PASSWORD}@192.168.1.51:554/stream1
+
+rtsp:
+  listen: ":8554"
+
+api:
+  listen: "127.0.0.1:1984"

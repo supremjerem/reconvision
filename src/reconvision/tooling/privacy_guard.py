@@ -43,8 +43,11 @@ ALLOWED_PREFIXES = ("docs/", ".github/assets/")
 
 # A stream URL is only dangerous once it carries a user:password pair.
 CREDENTIALED_URL = re.compile(r"\b(?:rtsp|rtsps|http|https)://[^\s/@:]+:[^\s/@]+@", re.IGNORECASE)
-# Example files exist to document the shape of a secret, so they are exempt.
-CREDENTIAL_EXEMPT = ("cameras.example.yaml", ".env.example")
+# A file whose whole job is to document the shape of a secret cannot also be
+# forbidden from containing one. Matched on the naming convention rather than a
+# list of names, so a new example file does not silently become unreviewable -
+# or, as happened here, block a legitimate commit.
+CREDENTIAL_EXEMPT_SUFFIX = ".example"
 
 
 def _is_blocked_media(path: Path) -> bool:
@@ -54,8 +57,17 @@ def _is_blocked_media(path: Path) -> bool:
     return path.suffix.lower() in BLOCKED_SUFFIXES
 
 
+def _is_example(path: Path) -> bool:
+    """Whether a path is an example file, by convention.
+
+    Covers `.env.example` and anything named `*.example.<ext>`, which is how every
+    template in this repository is named.
+    """
+    return path.name.endswith(CREDENTIAL_EXEMPT_SUFFIX) or CREDENTIAL_EXEMPT_SUFFIX in path.suffixes
+
+
 def _credential_lines(path: Path) -> list[tuple[int, str]]:
-    if path.name in CREDENTIAL_EXEMPT:
+    if _is_example(path):
         return []
     try:
         text = path.read_text(encoding="utf-8")

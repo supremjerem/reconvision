@@ -1,0 +1,577 @@
+/*
+ * ReconVision review screens.
+ *
+ * The palette comes from what these screens actually show: rooms lit by an
+ * infrared camera at night. A cold desaturated slate ground rather than a neutral
+ * grey, so a night snapshot sits inside the page instead of glaring out of it, and
+ * an off-white with a green cast for text, which is what IR illumination is.
+ *
+ * Almost everything here is a measurement - a timestamp, a similarity, a frame
+ * count - so measurements are set in monospace, where digits line up and can be
+ * compared down a column. The verdict is the one thing that is not a measurement,
+ * and it is the one thing set in a weighted sans.
+ */
+
+:root {
+  --ground: #141a1e;
+  --surface: #1c252b;
+  --surface-raised: #232e35;
+  --line: #2c3940;
+  --line-bright: #3d4d56;
+
+  --ink: #dce4e3;
+  --ink-muted: #8a9ba0;
+  --ink-faint: #5d6d74;
+
+  /* Semantic, not decorative: each colour is a verdict, and the verdict is the
+     content of the screen. */
+  --known: #7fb8a4;
+  --unknown: #e0855c;
+  --animal: #8e86c4;
+
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Mono", Menlo, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+
+  --radius: 3px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- chrome ---------- */
+
+.masthead {
+  display: flex;
+  align-items: baseline;
+  gap: 1.5rem;
+  padding: 1.1rem 1.5rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.wordmark {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.wordmark span {
+  color: var(--ink-faint);
+  font-weight: 400;
+}
+
+.nav {
+  display: flex;
+  gap: 1.25rem;
+  margin-left: auto;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+}
+
+.nav a {
+  color: var(--ink-muted);
+  text-decoration: none;
+  padding-bottom: 2px;
+  border-bottom: 1px solid transparent;
+}
+
+.nav a:hover {
+  color: var(--ink);
+  border-bottom-color: var(--line-bright);
+}
+
+.nav a[aria-current="page"] {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+main {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 1.75rem 1.5rem 5rem;
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 2rem 0 1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.section-head:first-child {
+  margin-top: 0;
+}
+
+.section-head h2 {
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.count {
+  color: var(--ink-faint);
+  font-size: 0.78rem;
+}
+
+/* ---------- filters ---------- */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1.25rem;
+}
+
+.filters a {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--ink-muted);
+  text-decoration: none;
+  font-size: 0.78rem;
+}
+
+.filters a[aria-current="true"] {
+  color: var(--ground);
+  background: var(--ink-muted);
+  border-color: var(--ink-muted);
+}
+
+/* ---------- event rows ---------- */
+
+.events {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.event {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) 12.5rem;
+  gap: 1.25rem;
+  padding: 0.9rem 1rem;
+  background: var(--surface);
+  align-items: center;
+}
+
+.event:hover {
+  background: var(--surface-raised);
+}
+
+.thumb {
+  width: 112px;
+  height: 74px;
+  object-fit: cover;
+  border-radius: 2px;
+  background: var(--ground);
+  border: 1px solid var(--line-bright);
+}
+
+.thumb--absent {
+  display: grid;
+  place-items: center;
+  color: var(--ink-faint);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+}
+
+.event-meta {
+  min-width: 0;
+}
+
+.stamp {
+  color: var(--ink-muted);
+  font-size: 0.8rem;
+}
+
+.stamp .camera {
+  color: var(--ink-faint);
+}
+
+.verdict {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin: 0.15rem 0 0.5rem;
+}
+
+.verdict--known_person {
+  color: var(--known);
+}
+
+.verdict--unknown_person,
+.verdict--unidentified {
+  color: var(--unknown);
+}
+
+.verdict--animal {
+  color: var(--animal);
+}
+
+/*
+ * The signature of these screens. Every other tool of this kind shows a verdict;
+ * this shows how close the call was. The tick is the calibrated threshold, the dot
+ * is where this face actually landed, and the gap between them is the argument of
+ * the whole system rendered as one line.
+ */
+.scale {
+  position: relative;
+  height: 22px;
+  margin: 0.35rem 0 0.55rem;
+  max-width: 24rem;
+}
+
+.scale-track {
+  position: absolute;
+  top: 8px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--line-bright);
+}
+
+.scale-track::before,
+.scale-track::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  width: 1px;
+  height: 7px;
+  background: var(--line-bright);
+}
+
+.scale-track::before {
+  left: 0;
+}
+
+.scale-track::after {
+  right: 0;
+}
+
+.scale-threshold {
+  position: absolute;
+  top: 2px;
+  width: 1px;
+  height: 13px;
+  background: var(--ink-faint);
+}
+
+.scale-threshold::after {
+  content: "thr";
+  position: absolute;
+  top: 12px;
+  left: -8px;
+  font-size: 0.6rem;
+  color: var(--ink-faint);
+}
+
+.scale-mark {
+  position: absolute;
+  top: 4px;
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
+  border-radius: 50%;
+  background: var(--unknown);
+  border: 1px solid var(--ground);
+}
+
+.event--known_person .scale-mark {
+  background: var(--known);
+}
+
+.evidence {
+  color: var(--ink-faint);
+  font-size: 0.75rem;
+}
+
+/* ---------- actions ---------- */
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-items: stretch;
+}
+
+.actions form {
+  margin: 0;
+  display: flex;
+  gap: 0.35rem;
+}
+
+button,
+select {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--ink);
+  background: var(--surface-raised);
+  border: 1px solid var(--line-bright);
+  border-radius: var(--radius);
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+}
+
+button {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.actions form button {
+  width: auto;
+}
+
+button:hover,
+select:hover {
+  border-color: var(--ink-faint);
+}
+
+button:focus-visible,
+select:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--known);
+  outline-offset: 2px;
+}
+
+button.affirm {
+  border-color: color-mix(in srgb, var(--known) 45%, var(--line-bright));
+  color: var(--known);
+}
+
+button.deny {
+  border-color: color-mix(in srgb, var(--unknown) 40%, var(--line-bright));
+  color: var(--unknown);
+}
+
+select {
+  flex: 1;
+  min-width: 0;
+}
+
+.reviewed,
+.result {
+  font-size: 0.75rem;
+  text-align: right;
+  margin: 0;
+}
+
+.reviewed {
+  color: var(--ink-faint);
+}
+
+.result {
+  color: var(--known);
+}
+
+/* ---------- contact sheet ---------- */
+
+.sheet {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.75rem;
+}
+
+.crop {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.55rem;
+  background: var(--surface);
+}
+
+.crop--rejected {
+  opacity: 0.55;
+}
+
+.crop--rejected .crop-name {
+  text-decoration: line-through;
+}
+
+.crop-name {
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crop-detail {
+  font-size: 0.68rem;
+  color: var(--ink-faint);
+  margin-top: 0.2rem;
+}
+
+/* ---------- forms and notes ---------- */
+
+.panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 1.1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.8rem;
+  max-width: 22rem;
+}
+
+label {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+input[type="text"],
+input[type="file"] {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--ink);
+  background: var(--ground);
+  border: 1px solid var(--line-bright);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.6rem;
+}
+
+.panel button {
+  width: auto;
+}
+
+.people-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.person {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+}
+
+.person-name {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.person form {
+  margin: 0 0 0 auto;
+}
+
+.person button {
+  width: auto;
+}
+
+.note {
+  color: var(--ink-muted);
+  font-size: 0.78rem;
+  margin: 0.75rem 0 0;
+  max-width: 42rem;
+}
+
+.warn {
+  color: var(--unknown);
+}
+
+.empty {
+  border: 1px dashed var(--line-bright);
+  border-radius: var(--radius);
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  color: var(--ink-muted);
+}
+
+.empty strong {
+  display: block;
+  font-family: var(--sans);
+  color: var(--ink);
+  font-size: 1rem;
+  margin-bottom: 0.4rem;
+}
+
+.empty code {
+  color: var(--known);
+}
+
+/* ---------- responsive ---------- */
+
+@media (max-width: 52rem) {
+  .event {
+    grid-template-columns: 92px minmax(0, 1fr);
+    grid-template-areas: "thumb meta" "actions actions";
+    row-gap: 0.75rem;
+  }
+
+  .thumb {
+    grid-area: thumb;
+    width: 92px;
+    height: 62px;
+  }
+
+  .event-meta {
+    grid-area: meta;
+  }
+
+  .actions {
+    grid-area: actions;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% set page = 'people' %}
+{% block title %}People · ReconVision{% endblock %}
+
+{% block content %}
+{% if not models_available %}
+<p class="note warn">{{ models_message }}</p>
+{% endif %}
+<div class="section-head">
+  <h2>Enrol someone</h2>
+</div>
+
+<form class="panel"
+      hx-post="/people"
+      hx-target="#enrollment-report"
+      hx-swap="innerHTML"
+      hx-encoding="multipart/form-data">
+  <div class="field">
+    <label for="identity_id">Short name</label>
+    <input type="text" id="identity_id" name="identity_id" required
+           placeholder="jeremie" autocomplete="off" />
+  </div>
+  <div class="field">
+    <label for="display_name">Full name</label>
+    <input type="text" id="display_name" name="display_name"
+           placeholder="Jeremie" autocomplete="off" />
+  </div>
+  <div class="field">
+    <label for="photos">Photographs</label>
+    <input type="file" id="photos" name="photos" accept="image/*" multiple required />
+  </div>
+  <button type="submit">Inspect and enrol</button>
+  <p class="note">
+    Ten to twenty photographs, across different light and angles. Each one is
+    reported below before anything is stored. A photograph containing more than one
+    face is skipped rather than guessed at: enrolling the wrong face produces no
+    error and makes every later comparison wrong.
+  </p>
+</form>
+
+<div id="enrollment-report"></div>
+
+<div class="section-head">
+  <h2>Known people</h2>
+  <span class="count">{{ people | length }}</span>
+</div>
+
+{% if not people %}
+<div class="empty">
+  <strong>Nobody is enrolled</strong>
+  Until someone is, every person is reported as unknown. Animals are detected
+  without any enrolment.
+</div>
+{% else %}
+<div class="people-list">
+  {% for person in people %}
+  <div class="person" id="person-{{ person.identity.identity_id }}">
+    <span class="person-name">{{ person.identity.display_name }}</span>
+    <span class="evidence">
+      {{ person.entries }} descriptor{{ '' if person.entries == 1 else 's' }}
+      {%- if person.entries < 10 %} · thin gallery{% endif %}
+    </span>
+    <form hx-post="/people/{{ person.identity.identity_id }}/forget"
+          hx-target="#person-{{ person.identity.identity_id }}"
+          hx-swap="innerHTML">
+      <button class="deny" type="submit">Forget</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

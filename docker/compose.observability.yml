@@ -1,0 +1,26 @@
+# Optional observability stack for local development and for a NAS that wants
+# dashboards. Run alongside the application:
+#
+#   docker compose -f docker/compose.observability.yml up -d
+#   RECONVISION_TELEMETRY_EXPORTER=otlp uv run reconvision run
+#
+# One container rather than the usual four: grafana/otel-lgtm bundles the OTel
+# collector, Prometheus, Loki, Tempo and Grafana, which is the right trade for a
+# home deployment where nobody wants to operate a metrics platform.
+services:
+  observability:
+    image: grafana/otel-lgtm:0.11.13
+    container_name: reconvision-observability
+    ports:
+      - "3000:3000"   # Grafana UI
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP, which is what RECONVISION_OTLP_ENDPOINT points at
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    volumes:
+      - observability-data:/data
+    restart: unless-stopped
+
+volumes:
+  observability-data:

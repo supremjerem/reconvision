@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% set page = 'review' %}
+{% block title %}Events · ReconVision{% endblock %}
+
+{% block content %}
+{% if not models_available %}
+<p class="note warn">{{ models_message }}</p>
+{% endif %}
+<div class="section-head">
+  <h2>Recent events</h2>
+  <span class="count">{{ events | length }} shown · threshold {{ "%.2f"|format(threshold) }}</span>
+</div>
+
+{% if cameras | length > 1 %}
+<div class="filters">
+  <a href="/" aria-current="{{ 'true' if not selected_camera else 'false' }}">all cameras</a>
+  {% for name in cameras %}
+  <a href="/?camera={{ name }}"
+     aria-current="{{ 'true' if selected_camera == name else 'false' }}">{{ name.replace('_', ' ') }}</a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if not events %}
+<div class="empty">
+  <strong>Nothing recorded yet</strong>
+  Point a camera at something and run <code>reconvision run --source webcam:0</code>.
+  Events appear here as people and animals pass in front of it.
+</div>
+{% else %}
+<div class="events">
+  {% for event in events %}
+  {% include "partials/event_row.html" %}
+  {% endfor %}
+</div>
+<p class="note">
+  Each correction does two things: it adds a capture taken by the real camera, in
+  the real light, which is worth more to the matcher than any enrolment portrait,
+  and it builds a labelled set from your own footage so
+  <code>reconvision eval</code> can recalibrate against reality.
+</p>
+{% endif %}
+{% endblock %}
