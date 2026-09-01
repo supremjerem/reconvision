@@ -74,7 +74,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # Built on every change rather than only on release. A Dockerfile that has
       # not been built since the last dependency bump is a Dockerfile that no
