@@ -80,7 +80,7 @@ jobs:
       # not been built since the last dependency bump is a Dockerfile that no
       # longer works, and finding that out during a deploy is too late.
       - name: Build the runtime image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/Dockerfile
