@@ -10,7 +10,7 @@
 # ---------------------------------------------------------------------------
 # Builder: resolve and install dependencies into a self-contained virtualenv.
 # ---------------------------------------------------------------------------
-FROM python:3.12-slim-bookworm AS builder
+FROM python:3.14-slim-bookworm AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.9.7 /uv /uvx /bin/
 
@@ -39,7 +39,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # ---------------------------------------------------------------------------
 # Runtime.
 # ---------------------------------------------------------------------------
-FROM python:3.12-slim-bookworm AS runtime
+FROM python:3.14-slim-bookworm AS runtime
 
 # OpenCV headless still needs the shared libraries behind image and video codecs.
 # libgl and the X11 stack are deliberately absent: nothing here draws to a screen.
